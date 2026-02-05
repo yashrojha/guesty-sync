@@ -1,0 +1,455 @@
+/**
+ * Start css the Shortcode [guesty_search_bar]
+ */
+:root {
+	--e-global-typography-primary-font-family: "Libre Baskerville";
+	--e-global-typography-secondary-font-family: "Baskerville Display PT";
+	--e-global-typography-accent-font-family: "League Spartan";
+	--litepicker-day-width: 52px;
+	--litepicker-is-start-color-bg: var(--Grey, #767676);
+	--litepicker-is-end-color-bg: var(--Grey, #767676);
+	--litepicker-is-in-range-color: var(--Grey-Light, #C4C4C4);
+	--litepicker-day-color-hover: var(--Grey, #767676);
+	--litepicker-month-weekday-color: var(--Grey, #767676);
+	--litepicker-is-locked-color: var(--Grey-Light, #C4C4C4);
+	--litepicker-button-prev-month-color: var(--Grey, #767676);
+    --litepicker-button-next-month-color: var(--Grey, #767676);
+    --litepicker-button-prev-month-color-hover: var(--Black, #000);
+    --litepicker-button-next-month-color-hover: var(--Black, #000);
+}
+.guesty-search-bar-box {
+    width: 100%;
+	.guesty-search-bar {
+		display: flex;
+		gap: 12px;
+		width: 100%;
+		max-width: 875px;
+		margin: 0 auto;
+		.guesty-field-wrap {
+			display: flex;
+			border: 1px solid var(--Grey-Light, #C4C4C4);
+			background: var(--White, #FFF);
+			.guesty-field {
+				border-right: 1px solid var(--Grey-Light, #C4C4C4);
+				display: flex;
+				width: 100%;
+				padding: 8px 16px;
+				flex-direction: column;
+				justify-content: center;
+				align-items: flex-start;
+				gap: 4px;
+				&:last-child {
+					border-right: 0px;
+				}
+				label {
+					color: var(--Black, #000);
+					font-family: var(--e-global-typography-accent-font-family), san-serif;
+					font-size: 10px;
+					font-style: normal;
+					font-weight: 500;
+					line-height: 16px;
+					letter-spacing: 0.2px;
+					text-transform: uppercase;
+				}
+				select, input {
+					border: none !important;
+					padding: 0px;
+					color: var(--Black, #000);
+					font-size: 20px;
+					font-style: normal;
+					font-weight: 400;
+					line-height: 27px;
+					width: 100%;
+					outline: none;
+					cursor: pointer;
+				}
+				&.option-date {
+				    max-width: 150px;
+				}
+				&.option-guests {
+				    max-width: 130px;
+				}
+			}
+		}
+		.guesty-action button {
+			display: flex;
+			min-width: 144px;
+			padding: 20px;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			height: 100%;
+			border: none;
+			background: var(--White, #FFF);
+			color: var(--Black, #000);
+			font-size: 16px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 16px;
+			letter-spacing: 0.64px;
+			text-transform: uppercase;
+		}
+	}
+}
+.archive-search-container {
+	.guesty-search-bar-box .guesty-search-bar .guesty-action button {
+		color: var(--White, #FFF);
+		background: var(--Black, #000);
+	}
+}
+
+/* Single property page – date picker (shared .guesty-field styles with search bar; edit here to affect both) */
+.date-picker-mock {
+	display: flex;
+	border: 1px solid var(--Grey-Light, #C4C4C4);
+	background: var(--White, #FFF);
+	flex-wrap: wrap;
+}
+.date-picker-mock .guesty-field {
+	border-right: 1px solid var(--Grey-Light, #C4C4C4);
+	display: flex;
+	width: 50%;
+	padding: 8px 16px;
+	flex-direction: column;
+	justify-content: center;
+	align-items: flex-start;
+	gap: 4px;
+}
+.date-picker-mock .guesty-field:last-child {
+	border-right: 0px;
+	width: 100%;
+	border-top: 1px solid var(--Grey-Light, #C4C4C4);
+}
+.date-picker-mock .guesty-field.option-date-2 {
+	border-right: 0px;
+}
+.date-picker-mock .guesty-field label {
+	color: var(--Black, #000);
+	font-family: var(--e-global-typography-accent-font-family), san-serif;
+	font-size: 10px;
+	font-style: normal;
+	font-weight: 500;
+	line-height: 16px;
+	letter-spacing: 0.2px;
+	text-transform: uppercase;
+}
+.date-picker-mock .guesty-field select,
+.date-picker-mock .guesty-field input {
+	border: none !important;
+	padding: 0px;
+	color: var(--Black, #000);
+	font-size: 20px;
+	font-style: normal;
+	font-weight: 400;
+	line-height: 27px;
+	width: 100%;
+	outline: none;
+	cursor: pointer;
+}
+
+.litepicker {
+	.container__days .day-item {
+		border-radius: 0px !important;
+        color: var(--Black, #000);
+        text-align: center;
+        font-family: var(--e-global-typography-accent-font-family), san-serif;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 1;
+        padding: 19px;
+		&.is-start-date {
+			font-weight: 600;
+		}
+		&.is-end-date {
+			font-weight: 600;
+		}
+		&.is-in-range {
+			font-weight: 600;
+		}
+	}
+	.container__months {
+		width: calc(var(--litepicker-month-width) + 20px);
+		&.columns-2 {
+			width: calc((var(--litepicker-month-width) * 2) + 40px);
+		}
+		.month-item {
+		    padding: 10px;
+		}
+		.month-item-header div {
+			color: #000;
+			font-family: var(--e-global-typography-accent-font-family), san-serif;
+			font-size: 18px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 12px;
+			letter-spacing: 1.44px;
+			text-transform: uppercase;
+			strong.month-item-name {
+				font-weight: 400;
+			}
+		}
+		.month-item-header .button-previous-month, .month-item-header .button-next-month {
+			background: transparent;
+		}
+		.month-item-weekdays-row {
+			border-bottom: 1px solid var(--Grey-Light, #C4C4C4);
+			&>div {
+				padding: 19px 0;
+				text-align: center;
+				font-family: var(--e-global-typography-accent-font-family), san-serif;
+				font-size: 14px;
+				font-style: normal;
+				font-weight: 400;
+				line-height: 1;
+				text-transform: uppercase;
+			}
+		}
+	}
+}
+
+
+/**
+ * Start css the Shortcode [guesty_property_map]
+ */
+.guesty-marker {
+    width: 70px;
+    height: 70px;
+    background-size: cover;
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+}
+.gm-style {
+	font-family: var(--e-global-typography-accent-font-family), san-serif;
+	.gm-style-iw {
+		padding: 0;
+		border-radius: 0;
+	}
+	.gm-style-iw-d {
+		overflow: hidden !important;
+	}
+	.gm-style-iw-chr {
+		position: absolute;
+		right: 12px;
+		top: 12px;
+		z-index: 2;
+		button.gm-ui-hover-effect {
+			display: flex !important;
+            width: 28px !important;
+            height: 28px !important;
+            padding: 6px !important;
+            justify-content: center;
+            align-items: center;
+            border-radius: 100px;
+            background: var(--white-60, rgba(255, 255, 255, 0.60)) !important;
+			opacity: 1;
+			span {
+				margin: 0 !important;
+				width: 16px !important;
+				height: 16px !important;
+				mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4.26536 12.5335L3.33203 11.6002L7.06536 7.86686L3.33203 4.13353L4.26536 3.2002L7.9987 6.93353L11.732 3.2002L12.6654 4.13353L8.93203 7.86686L12.6654 11.6002L11.732 12.5335L7.9987 8.8002L4.26536 12.5335Z" fill="black"/></svg>') !important;
+			}
+		}
+	}
+}
+.guesty-map-card {
+    width: 330px;
+    background: #fff;
+    overflow: hidden;
+	.card-content {
+		padding: 24px 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+		h3 {
+			margin: 0;
+			font-size: 24px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 1;
+			letter-spacing: 1.92px;
+			text-transform: uppercase;
+			color: #000;
+			text-shadow: none;
+		}
+		.region {
+			margin: 0;
+			color: var(--Grey, #767676);
+			font-size: 16px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 16px;
+			letter-spacing: 1.28px;
+			text-transform: uppercase;
+		}
+		.specs {
+			margin: 0;
+			color: var(--Grey, #767676);
+			font-family: "League Spartan";
+			font-size: 13px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 16px;
+			letter-spacing: 1.04px;
+			text-transform: uppercase;
+		}
+	}
+	.mapSwiper {
+		width: 100%;
+		height: 212px;
+		.swiper-slide .card-img {
+			width: 100%;
+			height: 100%;
+			background-size: cover;
+			background-position: center;
+		}
+		.swiper-button-next, .swiper-button-prev {
+			display: flex;
+			width: 28px;
+			height: 28px;
+			padding: 4px;
+			justify-content: center;
+			align-items: center;
+			border-radius: 100px;
+			background: var(--white-60, rgba(255, 255, 255, 0.60));
+			&:after {
+				display: none;
+			}
+		}
+		.swiper-button-prev {
+			left: 12px;
+		}
+		.swiper-button-next {
+			right: 12px;
+		}
+		.swiper-pagination-bullet {
+			background: #FFF;
+			opacity: 0.5;
+		}
+		.swiper-pagination-bullet-active {
+			background: #fff;
+			opacity: 1;
+		}
+	}
+}
+
+/*Trending Region*/
+.guesty-trending-items {
+	display: flex;
+	column-gap: 32px;
+	row-gap: 24px;
+	justify-content: center;
+	flex-wrap: wrap;
+	.region-name {
+		color: var(--Black, #000);
+		font-family: var(--e-global-typography-accent-font-family), san-serif;
+		font-size: 16px;
+		font-style: normal;
+		font-weight: 400;
+		line-height: 16px;
+		letter-spacing: 0.64px;
+		text-transform: uppercase;
+	}
+}
+
+
+/* Featured Properties & Archive – single source for grid/card styles */
+/* Grid Layout */
+.property-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 64px 20px;
+}
+
+/* Card Styling */
+.khove-card {
+    margin-bottom: 20px;
+}
+.property-grid .card-media img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: opacity 0.3s;
+}
+.property-grid .card-content {
+    padding: 20px 0;
+}
+.property-grid .property-title {
+    font-family: serif; /* Matches "OHANA" and "MATISSE" */
+    font-size: 28px;
+    text-transform: uppercase;
+    margin: 0 0 5px 0;
+}
+.property-grid .property-title a { text-decoration: none; color: #000; }
+.property-grid .property-city {
+    font-size: 11px;
+    color: #888;
+    letter-spacing: 1.5px;
+    margin-bottom: 15px;
+}
+.property-grid .property-excerpt {
+    font-size: 15px;
+    color: #444;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+/* Metadata Bar */
+.property-grid .property-specs-bar {
+    font-size: 10px;
+    color: #999;
+    letter-spacing: 1px;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 15px;
+    margin-bottom: 15px;
+}
+.property-grid .view-property-link {
+    font-size: 11px;
+    font-weight: bold;
+    color: #000;
+    text-decoration: underline;
+    text-underline-offset: 5px;
+}
+
+/* Archive properties page – single source (also removes need for inline styles in archive-properties.php) */
+.khove-archive-wrapper {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 40px 0px;
+}
+.archive-controls {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 30px;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.khove-pagination {
+    margin-top: 60px;
+    text-align: center;
+    border-top: 1px solid #eee;
+    padding-top: 30px;
+}
+.khove-pagination .page-numbers {
+    display: inline-block;
+    padding: 8px 16px;
+    margin: 0 4px;
+    text-decoration: none;
+    color: #000;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.khove-pagination .page-numbers.current {
+    background: #000;
+    color: #fff;
+}
+.khove-pagination .page-numbers:hover:not(.current) {
+    text-decoration: underline;
+}
+@media (max-width: 768px) {
+    .property-grid { grid-template-columns: 1fr; }
+}
