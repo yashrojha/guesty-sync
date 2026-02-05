@@ -22,7 +22,7 @@ function guesty_render_featured_properties() {
 							$city = get_post_meta($post_id, 'guesty_address_city', true);
 							$type = get_post_meta($post_id, 'guesty_property_type', true);
 						?>
-						<article class="khove-card">
+						<article class="guesty-card">
 							<div class="card-media">
 								<a href="<?php echo get_the_permalink($post_id); ?>">
 									<?php echo get_the_post_thumbnail($post_id, 'large' ); ?>
@@ -33,7 +33,7 @@ function guesty_render_featured_properties() {
 								<h2 class="property-title">
 									<a href="<?php echo get_the_permalink($post_id); ?>"><?php echo get_the_title($post_id); ?></a>
 								</h2>
-								<p class="property-city"><?php echo esc_html(strtoupper($city)); ?></p>
+								<p class="property-city"><a href="<?php echo esc_url(home_url('/properties')) . '?city=' . esc_attr($city); ?>"><?php echo esc_html(strtoupper($city)); ?></a></p>
 								
 								<div class="property-excerpt">
 									<?php echo wp_trim_words(get_the_excerpt($post_id), 20); ?>

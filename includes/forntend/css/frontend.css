@@ -2,7 +2,7 @@
  * Start css the Shortcode [guesty_search_bar]
  */
 :root {
-	--e-global-typography-primary-font-family: "Libre Baskerville";
+	--e-global-typography-primary-font-family: "Baskerville";
 	--e-global-typography-secondary-font-family: "Baskerville Display PT";
 	--e-global-typography-accent-font-family: "League Spartan";
 	--litepicker-day-width: 52px;
@@ -13,22 +13,26 @@
 	--litepicker-month-weekday-color: var(--Grey, #767676);
 	--litepicker-is-locked-color: var(--Grey-Light, #C4C4C4);
 	--litepicker-button-prev-month-color: var(--Grey, #767676);
-    --litepicker-button-next-month-color: var(--Grey, #767676);
-    --litepicker-button-prev-month-color-hover: var(--Black, #000);
-    --litepicker-button-next-month-color-hover: var(--Black, #000);
+	--litepicker-button-next-month-color: var(--Grey, #767676);
+	--litepicker-button-prev-month-color-hover: var(--Black, #000);
+	--litepicker-button-next-month-color-hover: var(--Black, #000);
 }
+
 .guesty-search-bar-box {
-    width: 100%;
+	width: 100%;
+
 	.guesty-search-bar {
 		display: flex;
 		gap: 12px;
 		width: 100%;
 		max-width: 875px;
 		margin: 0 auto;
+
 		.guesty-field-wrap {
 			display: flex;
 			border: 1px solid var(--Grey-Light, #C4C4C4);
 			background: var(--White, #FFF);
+
 			.guesty-field {
 				border-right: 1px solid var(--Grey-Light, #C4C4C4);
 				display: flex;
@@ -38,9 +42,11 @@
 				justify-content: center;
 				align-items: flex-start;
 				gap: 4px;
+
 				&:last-child {
 					border-right: 0px;
 				}
+
 				label {
 					color: var(--Black, #000);
 					font-family: var(--e-global-typography-accent-font-family), san-serif;
@@ -51,7 +57,9 @@
 					letter-spacing: 0.2px;
 					text-transform: uppercase;
 				}
-				select, input {
+
+				select,
+				input {
 					border: none !important;
 					padding: 0px;
 					color: var(--Black, #000);
@@ -63,14 +71,17 @@
 					outline: none;
 					cursor: pointer;
 				}
+
 				&.option-date {
-				    max-width: 150px;
+					max-width: 150px;
 				}
+
 				&.option-guests {
-				    max-width: 130px;
+					max-width: 130px;
 				}
 			}
 		}
+
 		.guesty-action button {
 			display: flex;
 			min-width: 144px;
@@ -91,6 +102,7 @@
 		}
 	}
 }
+
 .archive-search-container {
 	.guesty-search-bar-box .guesty-search-bar .guesty-action button {
 		color: var(--White, #FFF);
@@ -105,6 +117,7 @@
 	background: var(--White, #FFF);
 	flex-wrap: wrap;
 }
+
 .date-picker-mock .guesty-field {
 	border-right: 1px solid var(--Grey-Light, #C4C4C4);
 	display: flex;
@@ -115,14 +128,17 @@
 	align-items: flex-start;
 	gap: 4px;
 }
+
 .date-picker-mock .guesty-field:last-child {
 	border-right: 0px;
 	width: 100%;
 	border-top: 1px solid var(--Grey-Light, #C4C4C4);
 }
+
 .date-picker-mock .guesty-field.option-date-2 {
 	border-right: 0px;
 }
+
 .date-picker-mock .guesty-field label {
 	color: var(--Black, #000);
 	font-family: var(--e-global-typography-accent-font-family), san-serif;
@@ -133,6 +149,7 @@
 	letter-spacing: 0.2px;
 	text-transform: uppercase;
 }
+
 .date-picker-mock .guesty-field select,
 .date-picker-mock .guesty-field input {
 	border: none !important;
@@ -150,32 +167,39 @@
 .litepicker {
 	.container__days .day-item {
 		border-radius: 0px !important;
-        color: var(--Black, #000);
-        text-align: center;
-        font-family: var(--e-global-typography-accent-font-family), san-serif;
-        font-size: 14px;
-        font-style: normal;
-        font-weight: 400;
-        line-height: 1;
-        padding: 19px;
+		color: var(--Black, #000);
+		text-align: center;
+		font-family: var(--e-global-typography-accent-font-family), san-serif;
+		font-size: 14px;
+		font-style: normal;
+		font-weight: 400;
+		line-height: 1;
+		padding: 19px;
+
 		&.is-start-date {
 			font-weight: 600;
 		}
+
 		&.is-end-date {
 			font-weight: 600;
 		}
+
 		&.is-in-range {
 			font-weight: 600;
 		}
 	}
+
 	.container__months {
 		width: calc(var(--litepicker-month-width) + 20px);
+
 		&.columns-2 {
 			width: calc((var(--litepicker-month-width) * 2) + 40px);
 		}
+
 		.month-item {
-		    padding: 10px;
+			padding: 10px;
 		}
+
 		.month-item-header div {
 			color: #000;
 			font-family: var(--e-global-typography-accent-font-family), san-serif;
@@ -185,15 +209,20 @@
 			line-height: 12px;
 			letter-spacing: 1.44px;
 			text-transform: uppercase;
+
 			strong.month-item-name {
 				font-weight: 400;
 			}
 		}
-		.month-item-header .button-previous-month, .month-item-header .button-next-month {
+
+		.month-item-header .button-previous-month,
+		.month-item-header .button-next-month {
 			background: transparent;
 		}
+
 		.month-item-weekdays-row {
 			border-bottom: 1px solid var(--Grey-Light, #C4C4C4);
+
 			&>div {
 				padding: 19px 0;
 				text-align: center;
@@ -213,36 +242,42 @@
  * Start css the Shortcode [guesty_property_map]
  */
 .guesty-marker {
-    width: 70px;
-    height: 70px;
-    background-size: cover;
-    border: 3px solid #ffffff;
-    border-radius: 50%;
+	width: 70px;
+	height: 70px;
+	background-size: cover;
+	border: 3px solid #ffffff;
+	border-radius: 50%;
 }
+
 .gm-style {
 	font-family: var(--e-global-typography-accent-font-family), san-serif;
+
 	.gm-style-iw {
 		padding: 0;
 		border-radius: 0;
 	}
+
 	.gm-style-iw-d {
 		overflow: hidden !important;
 	}
+
 	.gm-style-iw-chr {
 		position: absolute;
 		right: 12px;
 		top: 12px;
 		z-index: 2;
+
 		button.gm-ui-hover-effect {
 			display: flex !important;
-            width: 28px !important;
-            height: 28px !important;
-            padding: 6px !important;
-            justify-content: center;
-            align-items: center;
-            border-radius: 100px;
-            background: var(--white-60, rgba(255, 255, 255, 0.60)) !important;
+			width: 28px !important;
+			height: 28px !important;
+			padding: 6px !important;
+			justify-content: center;
+			align-items: center;
+			border-radius: 100px;
+			background: var(--white-60, rgba(255, 255, 255, 0.60)) !important;
 			opacity: 1;
+
 			span {
 				margin: 0 !important;
 				width: 16px !important;
@@ -252,15 +287,18 @@
 		}
 	}
 }
+
 .guesty-map-card {
-    width: 330px;
-    background: #fff;
-    overflow: hidden;
+	width: 330px;
+	background: #fff;
+	overflow: hidden;
+
 	.card-content {
 		padding: 24px 20px;
 		display: flex;
 		flex-direction: column;
 		gap: 20px;
+
 		h3 {
 			margin: 0;
 			font-size: 24px;
@@ -272,6 +310,7 @@
 			color: #000;
 			text-shadow: none;
 		}
+
 		.region {
 			margin: 0;
 			color: var(--Grey, #767676);
@@ -282,6 +321,7 @@
 			letter-spacing: 1.28px;
 			text-transform: uppercase;
 		}
+
 		.specs {
 			margin: 0;
 			color: var(--Grey, #767676);
@@ -294,16 +334,20 @@
 			text-transform: uppercase;
 		}
 	}
+
 	.mapSwiper {
 		width: 100%;
 		height: 212px;
+
 		.swiper-slide .card-img {
 			width: 100%;
 			height: 100%;
 			background-size: cover;
 			background-position: center;
 		}
-		.swiper-button-next, .swiper-button-prev {
+
+		.swiper-button-next,
+		.swiper-button-prev {
 			display: flex;
 			width: 28px;
 			height: 28px;
@@ -312,20 +356,25 @@
 			align-items: center;
 			border-radius: 100px;
 			background: var(--white-60, rgba(255, 255, 255, 0.60));
+
 			&:after {
 				display: none;
 			}
 		}
+
 		.swiper-button-prev {
 			left: 12px;
 		}
+
 		.swiper-button-next {
 			right: 12px;
 		}
+
 		.swiper-pagination-bullet {
 			background: #FFF;
 			opacity: 0.5;
 		}
+
 		.swiper-pagination-bullet-active {
 			background: #fff;
 			opacity: 1;
@@ -340,6 +389,7 @@
 	row-gap: 24px;
 	justify-content: center;
 	flex-wrap: wrap;
+
 	.region-name {
 		color: var(--Black, #000);
 		font-family: var(--e-global-typography-accent-font-family), san-serif;
@@ -356,100 +406,108 @@
 /* Featured Properties & Archive – single source for grid/card styles */
 /* Grid Layout */
 .property-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 64px 20px;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 64px 20px;
 }
 
 /* Card Styling */
-.khove-card {
-    margin-bottom: 20px;
+.guesty-card {
+	margin-bottom: 20px;
 }
+
 .property-grid .card-media img {
-    width: 100%;
-    height: auto;
-    display: block;
-    transition: opacity 0.3s;
+	width: 100%;
+	height: auto;
+	display: block;
+	aspect-ratio: 4 / 3;
+	object-fit: cover;
+	transition: opacity 0.3s;
 }
+
 .property-grid .card-content {
-    padding: 20px 0;
+	padding: 32px 0 24px;
+	border-bottom: 1px solid var(--Grey-Light, #C4C4C4);
 }
+
 .property-grid .property-title {
-    font-family: serif; /* Matches "OHANA" and "MATISSE" */
-    font-size: 28px;
-    text-transform: uppercase;
-    margin: 0 0 5px 0;
+	font-family: var(--e-global-typography-accent-font-family), san-serif;
+	font-weight: 400;
+	font-size: 28px;
+	line-height: 120%;
+	letter-spacing: 1.68px;
+	font-style: normal;
+	text-transform: uppercase;
+	margin: 0 0 24px 0;
+	a {
+		text-decoration: none;
+		color: var(--Black, #000);
+	}
 }
-.property-grid .property-title a { text-decoration: none; color: #000; }
+
 .property-grid .property-city {
-    font-size: 11px;
-    color: #888;
-    letter-spacing: 1.5px;
-    margin-bottom: 15px;
+	font-size: 16px;
+	font-family: var(--e-global-typography-accent-font-family), san-serif;
+	line-height: 100%;
+	color: var(--Grey, #767676);
+	letter-spacing: 1.28px;
+	margin-bottom: 28px;
+	a {
+		text-decoration: none;
+		color: var(--Grey, #767676);
+	}
 }
+
 .property-grid .property-excerpt {
-    font-size: 15px;
-    color: #444;
-    line-height: 1.6;
-    margin-bottom: 20px;
+	font-size: 20px;
+	color: var(--Black, #000);
+	line-height: 27px;
+	margin-bottom: 28px;
 }
 
 /* Metadata Bar */
 .property-grid .property-specs-bar {
-    font-size: 10px;
-    color: #999;
-    letter-spacing: 1px;
-    border-top: 1px solid #f0f0f0;
-    padding-top: 15px;
-    margin-bottom: 15px;
-}
-.property-grid .view-property-link {
-    font-size: 11px;
-    font-weight: bold;
-    color: #000;
-    text-decoration: underline;
-    text-underline-offset: 5px;
+	font-size: 13px;
+	color: var(--Grey, #767676);
+	line-height: 100%;
+	text-transform: uppercase;
+	font-family: var(--e-global-typography-accent-font-family), san-serif;
+	letter-spacing: 1.04px;
+	margin-bottom: 35px;
 }
 
-/* Archive properties page – single source (also removes need for inline styles in archive-properties.php) */
-.khove-archive-wrapper {
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 40px 0px;
+.property-grid .view-property-link {
+	font-size: 16px;
+	line-height: 16px;
+	font-family: var(--e-global-typography-accent-font-family), san-serif;
+	font-weight: 400;
+	letter-spacing: 0.64px;
+	color: #000;
+	text-transform: uppercase;
+	position: relative;
+
+	&:after {
+		content: '';
+		height: 1px;
+		bottom: -3px;
+		position: absolute;
+		left: 0;
+		background: #000 !important;
+		width: 60%;
+		opacity: 0;
+		transition: width 0.4s ease, opacity 0.4s ease;
+	}
+
+	&:hover {
+		&:after {
+			opacity: 1;
+			width: 100%;
+		}
+	}
 }
-.archive-controls {
-    display: flex;
-    justify-content: space-between;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
-    margin-bottom: 30px;
-    font-size: 12px;
-    font-weight: bold;
-    letter-spacing: 1px;
-}
-.khove-pagination {
-    margin-top: 60px;
-    text-align: center;
-    border-top: 1px solid #eee;
-    padding-top: 30px;
-}
-.khove-pagination .page-numbers {
-    display: inline-block;
-    padding: 8px 16px;
-    margin: 0 4px;
-    text-decoration: none;
-    color: #000;
-    font-size: 13px;
-    font-weight: bold;
-    letter-spacing: 1px;
-}
-.khove-pagination .page-numbers.current {
-    background: #000;
-    color: #fff;
-}
-.khove-pagination .page-numbers:hover:not(.current) {
-    text-decoration: underline;
-}
+
 @media (max-width: 768px) {
-    .property-grid { grid-template-columns: 1fr; }
+	.property-grid {
+		grid-template-columns: 1fr;
+	}
 }

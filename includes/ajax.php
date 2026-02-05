@@ -188,8 +188,8 @@ function guesty_download_image_fast($url, $post_id) {
 /**
  * Only run on the frontend, main query, and for properties archive/search
  */
-add_action('pre_get_posts', 'khove_archive_filter');
-function khove_archive_filter($query) {
+add_action('pre_get_posts', 'guesty_archive_filter');
+function guesty_archive_filter($query) {
     if (!is_admin() && $query->is_main_query() && (is_post_type_archive('properties') || is_tax() || is_search())) {
         
 		// 1. PROPERTY AVAILABILITY CHECK

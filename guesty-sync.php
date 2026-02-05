@@ -75,6 +75,22 @@ function guesty_enqueue_frontend_css() {
 }
 
 /**
+ * Enqueue Archive Properties CSS (only on properties archive)
+ */
+add_action('wp_enqueue_scripts', 'guesty_enqueue_archive_properties_css', 100);
+function guesty_enqueue_archive_properties_css() {
+	if (!is_post_type_archive('properties')) {
+		return;
+	}
+	wp_enqueue_style(
+		'guesty-archive-properties-css',
+		GUESTY_SYNC_URL . 'includes/forntend/css/archive-properties.css',
+		array('frontend-css'),
+		time()
+	);
+}
+
+/**
  * Enqueue Swiper Assets in Plugin
  */
 add_action('wp_enqueue_scripts', 'guesty_enqueue_swiper_assets');

@@ -1,0 +1,64 @@
+/**
+ * Archive properties page only – enqueued on post type archive 'properties'.
+ * Shared grid/card styles remain in frontend.css for use by [guesty_featured_properties] etc.
+ */
+
+.guesty-archive-wrapper {
+	max-width: 100%;
+	margin: 0 auto;
+	padding: 40px 0px;
+}
+
+.archive-controls {
+	display: flex;
+	justify-content: space-between;
+	border-bottom: 1px solid #eee;
+	padding-bottom: 15px;
+	margin-bottom: 30px;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 1px;
+}
+
+.guesty-pagination {
+	margin-top: 60px;
+	text-align: center;
+	border-top: 1px solid #eee;
+	padding-top: 30px;
+}
+
+.guesty-pagination .page-numbers {
+	display: inline-block;
+	padding: 8px 16px;
+	margin: 0 4px;
+	text-decoration: none;
+	color: #000;
+	font-size: 13px;
+	font-weight: bold;
+	letter-spacing: 1px;
+}
+
+.guesty-pagination .page-numbers.current {
+	background: #000;
+	color: #fff;
+}
+
+.guesty-pagination .page-numbers:hover:not(.current) {
+	text-decoration: underline;
+}
+
+.guesty-archive-map-section {
+	margin-top: 60px;
+	padding-top: 40px;
+	border-top: 0.5px solid #000;
+}
+
+.guesty-archive-map-title {
+	margin: 0 0 72px;
+	font-size: 28px;
+	font-family: var(--e-global-typography-accent-font-family), san-serif;
+	font-weight: 400;
+	letter-spacing: 1.68px;
+	line-height: 120%;
+	text-transform: uppercase;
+}

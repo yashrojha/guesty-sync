@@ -18,7 +18,7 @@ add_action('wp_enqueue_scripts', function() {
 <main id="content" <?php post_class( 'site-main' ); ?>>
 <?php }?>
 			<?php while (have_posts()) : the_post(); ?>
-				<div class="khove-single-property-wrapper">
+				<div class="guesty-single-property-wrapper">
 					<div class="property-back-button">
 						<a href="<?php echo esc_url( get_post_type_archive_link( 'properties' ) ); ?>" class="back-link">← See all Properties</a>
 					</div>
@@ -189,7 +189,7 @@ add_action('wp_enqueue_scripts', function() {
 								<?php the_content(); ?>
 							</div>
 
-							<div class="khove-accordions">
+							<div class="guesty-accordions">
 								<?php 
 								$sections = ['Description Space', 'Description Access', 'Description Neighborhood', 'Description Notes'];
 								foreach($sections as $section): 
@@ -453,7 +453,7 @@ document.querySelector('.view-availability-btn').addEventListener('click', async
 </script>
 
 <style>
-.khove-single-property-wrapper {
+.guesty-single-property-wrapper {
     padding-top: 14px;
 }
 .property-back-button {
