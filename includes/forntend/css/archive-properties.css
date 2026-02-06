@@ -6,59 +6,78 @@
 .guesty-archive-wrapper {
 	max-width: 100%;
 	margin: 0 auto;
-	padding: 40px 0px;
+	padding: 62px 0 0;
 }
 
 .archive-controls {
 	display: flex;
 	justify-content: space-between;
-	border-bottom: 1px solid #eee;
-	padding-bottom: 15px;
-	margin-bottom: 30px;
-	font-size: 12px;
-	font-weight: bold;
+	font-family: var(--e-global-typography-accent-font-family), san-serif;
+	margin-bottom: 34px;
+	font-size: 22px;
+	font-weight: 400;
+	color: var(--Black, #000);
 	letter-spacing: 1px;
+	.filter-trigger{
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		cursor: pointer;
+	}
+	span{
+		font-size: 14px;
+		line-height: 14px;
+		margin-bottom: -3px;
+	}
 }
 
 .guesty-pagination {
-	margin-top: 60px;
-	text-align: center;
-	border-top: 1px solid #eee;
-	padding-top: 30px;
+    margin-top: 72px;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+	.page-numbers {
+		display: inline-flex;
+		width: 40px;
+		height: 40px;
+		text-decoration: none;
+		color: #000;
+		font-size: 14px;
+		font-family: var(--e-global-typography-accent-font-family), san-serif;
+		font-weight: 500;
+		text-transform: uppercase;
+		transition: all 0.3s ease;
+		justify-content: center;
+		align-items: center;
+		&.current {
+			background: #000;
+			color: #fff;
+		}
+		&:hover:not(.current) {
+			text-decoration: underline;
+			text-underline-offset: 2px;
+		}
+	}
 }
 
-.guesty-pagination .page-numbers {
-	display: inline-block;
-	padding: 8px 16px;
-	margin: 0 4px;
-	text-decoration: none;
-	color: #000;
-	font-size: 13px;
-	font-weight: bold;
-	letter-spacing: 1px;
-}
-
-.guesty-pagination .page-numbers.current {
-	background: #000;
-	color: #fff;
-}
-
-.guesty-pagination .page-numbers:hover:not(.current) {
-	text-decoration: underline;
+.archive-search-container{
+	padding-bottom: 67px;
 }
 
 .guesty-archive-map-section {
-	margin-top: 60px;
-	padding-top: 40px;
+	margin: 112px 0 100px;
+	padding-top: 112px;
 	border-top: 0.5px solid #000;
-}
-
-.guesty-archive-map-title {
-	margin: 0 0 72px;
-	font-size: 28px;
-	font-family: var(--e-global-typography-accent-font-family), san-serif;
-	font-weight: 400;
-	letter-spacing: 1.68px;
-	line-height: 120%;
-	text-transform: uppercase;
+	.guesty-archive-map-title {
+		margin: 0 0 72px;
+		font-size: 28px;
+		font-family: var(--e-global-typography-accent-font-family), san-serif;
+		font-weight: 400;
+		letter-spacing: 1.68px;
+		line-height: 120%;
+		font-style: normal;
+		text-align: center;
+		text-transform: uppercase;
+	}
 }

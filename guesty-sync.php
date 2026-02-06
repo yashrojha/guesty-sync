@@ -64,11 +64,11 @@ function guesty_enqueue_frontend_css() {
         [],
         time()
     );
-	// Enqueue JS
+	// Enqueue JS (depends on swiper for card sliders)
     wp_enqueue_script(
         'frontend-js',
         GUESTY_SYNC_URL . 'includes/forntend/js/frontend.js',
-        [],
+        array('swiper-js'),
         time(),
         true // Load in footer
     );
@@ -208,6 +208,12 @@ function guesty_create_log_table() {
 function guesty_log($type, $message) {
     global $wpdb;
     $table = $wpdb->prefix . 'guesty_sync_logs';
+
+    // Ensure table exists (e.g. if activation hook never ran or DB was migrated)
+    if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
+        guesty_create_log_table();
+    }
+
     $wpdb->insert(
         $table,
         [

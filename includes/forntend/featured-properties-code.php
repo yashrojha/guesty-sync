@@ -15,18 +15,43 @@ function guesty_render_featured_properties() {
 					if ( !empty($property_ids) ) :
 						foreach ( $property_ids as $post_id ) : ?>
 						<?php 
-							// Fetch metadata
 							$guests = get_post_meta($post_id, 'guesty_accommodates', true);
 							$beds = get_post_meta($post_id, 'guesty_bedrooms', true);
 							$baths = get_post_meta($post_id, 'guesty_bathrooms', true);
 							$city = get_post_meta($post_id, 'guesty_address_city', true);
 							$type = get_post_meta($post_id, 'guesty_property_type', true);
+							$property_icon = get_post_meta($post_id, 'guesty_property_icon_id', true);
+							$gallery_ids = (array) get_post_meta($post_id, 'guesty_gallery_ids', true);
+							$gallery_ids = array_filter(array_map('intval', $gallery_ids));
+							$card_images = array_slice($gallery_ids, 0, 4);
+							if (empty($card_images) && has_post_thumbnail($post_id)) {
+								$card_images = [get_post_thumbnail_id($post_id)];
+							}
 						?>
 						<article class="guesty-card">
 							<div class="card-media">
-								<a href="<?php echo get_the_permalink($post_id); ?>">
-									<?php echo get_the_post_thumbnail($post_id, 'large' ); ?>
-								</a>
+								<div class="card-swiper swiper">
+									<div class="swiper-wrapper">
+										<?php foreach ($card_images as $img_id) :
+											$img_url = wp_get_attachment_image_url($img_id, 'large');
+											if (!$img_url) continue;
+										?>
+										<div class="swiper-slide">
+											<a href="<?php echo get_the_permalink($post_id); ?>">
+												<img class="property-card-featured-image" src="<?php echo esc_url($img_url); ?>" alt="">
+											</a>
+										</div>
+										<?php endforeach; ?>
+									</div>
+									<div class="swiper-button-next" aria-label="Next"></div>
+									<div class="swiper-button-prev" aria-label="Previous"></div>
+									<div class="swiper-pagination"></div>
+								</div>
+								<?php if ($property_icon) { ?>
+									<a href="<?php echo get_the_permalink($post_id); ?>" class="property-card-icon-wrap">
+										<img class="property-card-icon" src="<?php echo esc_url(wp_get_attachment_image_url($property_icon, 'thumbnail')); ?>" alt="">
+									</a>
+								<?php } ?>
 							</div>
 
 							<div class="card-content">

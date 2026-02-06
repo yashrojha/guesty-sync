@@ -2,6 +2,30 @@
  * Register the Frontend Dateselect js
  */
 document.addEventListener('DOMContentLoaded', function () {
+    // Card Swiper (archive + featured) - arrows and pagination on hover
+    if (typeof Swiper !== 'undefined') {
+        document.querySelectorAll('.card-swiper').forEach(function (el) {
+            var slides = el.querySelectorAll('.swiper-slide');
+            if (slides.length === 0) return;
+            if (slides.length === 1) el.classList.add('single-slide');
+            new Swiper(el, {
+                slidesPerView: 1,
+                spaceBetween: 0,
+                loop: slides.length > 1,
+                navigation: {
+                    nextEl: el.querySelector('.swiper-button-next'),
+                    prevEl: el.querySelector('.swiper-button-prev'),
+                },
+                pagination: {
+                    el: el.querySelector('.swiper-pagination'),
+                    clickable: true,
+                },
+            });
+        });
+    }
+
+    const pickerEl = document.getElementById('checkin_date_display');
+    if (pickerEl) {
     const picker = new Litepicker({
 		element: document.getElementById('checkin_date_display'),
 		elementEnd: document.getElementById('checkout_date_display'),
@@ -38,4 +62,5 @@ document.addEventListener('DOMContentLoaded', function () {
 			});
 		}
 	});
+    }
 });

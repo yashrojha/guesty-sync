@@ -78,12 +78,12 @@ function initGuestyMap() {
 				new Swiper(".mapSwiper", {
 					loop: true,
 					pagination: {
-						el: ".swiper-pagination",
+						el: ".mapSwiper .swiper-pagination",
 						clickable: true,
 					},
 					navigation: {
-						nextEl: ".swiper-button-next",
-						prevEl: ".swiper-button-prev",
+						nextEl: ".mapSwiper .swiper-button-next",
+						prevEl: ".mapSwiper .swiper-button-prev",
 					},
 				});
 			});
