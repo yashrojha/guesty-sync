@@ -41,11 +41,16 @@ if (did_action('elementor/loaded')) {
 								$city = get_post_meta(get_the_ID(), 'guesty_address_city', true);
 								$type = get_post_meta(get_the_ID(), 'guesty_property_type', true);
 								$propertyIcon = get_post_meta(get_the_ID(), 'guesty_property_icon_id', true);
+								$params = $_GET;
+								$link = get_permalink(get_the_ID());
+								if (!empty($params)) {
+								  $link = add_query_arg($params, $link);
+								}
 						?>
 								<?php
 									$gallery_ids = (array) get_post_meta(get_the_ID(), 'guesty_gallery_ids', true);
 									$gallery_ids = array_filter(array_map('intval', $gallery_ids));
-									$card_images = array_slice($gallery_ids, 0, 4);
+									$card_images = array_slice($gallery_ids, 0, 5);
 									if (empty($card_images) && has_post_thumbnail()) {
 										$card_images = [get_post_thumbnail_id()];
 									}
@@ -55,22 +60,22 @@ if (did_action('elementor/loaded')) {
 										<div class="card-swiper swiper">
 											<div class="swiper-wrapper">
 												<?php foreach ($card_images as $img_id) :
-													$img_url = wp_get_attachment_image_url($img_id, 'large');
+													$img_url = wp_get_attachment_image_url($img_id, 'guesty_large');
 													if (!$img_url) continue;
 												?>
 												<div class="swiper-slide">
-													<a href="<?php the_permalink(); ?>">
+													<a href="<?php echo esc_url($link); ?>">
 														<img class="property-card-featured-image" src="<?php echo esc_url($img_url); ?>" alt="">
 													</a>
 												</div>
 												<?php endforeach; ?>
 											</div>
-											<div class="swiper-button-next" aria-label="Next"></div>
-											<div class="swiper-button-prev" aria-label="Previous"></div>
+											<div class="swiper-button-next" aria-label="Next"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M7.15703 6.175L10.9737 10L7.15703 13.825L8.33203 15L13.332 10L8.33203 5L7.15703 6.175Z" fill="black"/></svg></div>
+											<div class="swiper-button-prev" aria-label="Previous"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.843 6.175L9.0263 10L12.843 13.825L11.668 15L6.66797 10L11.668 5L12.843 6.175Z" fill="black"/></svg></div>
 											<div class="swiper-pagination"></div>
 										</div>
 										<?php if ($propertyIcon) { ?>
-											<a href="<?php the_permalink(); ?>" class="property-card-icon-wrap">
+											<a href="<?php echo esc_url($link); ?>" class="property-card-icon-wrap">
 												<img class="property-card-icon" src="<?php echo esc_url(wp_get_attachment_image_url($propertyIcon, 'thumbnail')); ?>" alt="">
 											</a>
 										<?php } ?>
@@ -78,7 +83,7 @@ if (did_action('elementor/loaded')) {
 
 									<div class="card-content">
 										<h2 class="property-title">
-											<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+											<a href="<?php echo esc_url($link); ?>"><?php the_title(); ?></a>
 										</h2>
 										<p class="property-city"><a href="<?php echo esc_url(home_url('/properties')) . '?city=' . esc_attr($city); ?>"><?php echo esc_html(strtoupper($city)); ?></a></p>
 
@@ -90,7 +95,7 @@ if (did_action('elementor/loaded')) {
 											<?php echo strtoupper($type); ?> • <?php echo $guests; ?> GUESTS • <?php echo $beds; ?> BEDROOMS • <?php echo $baths; ?> BATHROOMS
 										</div>
 
-										<a href="<?php the_permalink(); ?>" class="view-property-link">VIEW PROPERTY</a>
+										<a href="<?php echo esc_url($link); ?>" class="view-property-link">VIEW PROPERTY</a>
 									</div>
 								</article>
 						<?php endwhile;

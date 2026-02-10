@@ -8,7 +8,6 @@
 	margin: 0 auto;
 	padding: 62px 0 0;
 }
-
 .archive-controls {
 	display: flex;
 	justify-content: space-between;
@@ -30,7 +29,6 @@
 		margin-bottom: -3px;
 	}
 }
-
 .guesty-pagination {
     margin-top: 72px;
     text-align: center;
@@ -60,11 +58,9 @@
 		}
 	}
 }
-
 .archive-search-container{
 	padding-bottom: 67px;
 }
-
 .guesty-archive-map-section {
 	margin: 112px 0 100px;
 	padding-top: 112px;

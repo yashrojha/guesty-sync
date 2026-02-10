@@ -23,7 +23,7 @@ function guesty_render_featured_properties() {
 							$property_icon = get_post_meta($post_id, 'guesty_property_icon_id', true);
 							$gallery_ids = (array) get_post_meta($post_id, 'guesty_gallery_ids', true);
 							$gallery_ids = array_filter(array_map('intval', $gallery_ids));
-							$card_images = array_slice($gallery_ids, 0, 4);
+							$card_images = array_slice($gallery_ids, 0, 5);
 							if (empty($card_images) && has_post_thumbnail($post_id)) {
 								$card_images = [get_post_thumbnail_id($post_id)];
 							}
@@ -33,7 +33,7 @@ function guesty_render_featured_properties() {
 								<div class="card-swiper swiper">
 									<div class="swiper-wrapper">
 										<?php foreach ($card_images as $img_id) :
-											$img_url = wp_get_attachment_image_url($img_id, 'large');
+											$img_url = wp_get_attachment_image_url($img_id, 'guesty_large');
 											if (!$img_url) continue;
 										?>
 										<div class="swiper-slide">
@@ -43,8 +43,8 @@ function guesty_render_featured_properties() {
 										</div>
 										<?php endforeach; ?>
 									</div>
-									<div class="swiper-button-next" aria-label="Next"></div>
-									<div class="swiper-button-prev" aria-label="Previous"></div>
+									<div class="swiper-button-next" aria-label="Next"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M7.15703 6.175L10.9737 10L7.15703 13.825L8.33203 15L13.332 10L8.33203 5L7.15703 6.175Z" fill="black"/></svg></div>
+									<div class="swiper-button-prev" aria-label="Previous"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.843 6.175L9.0263 10L12.843 13.825L11.668 15L6.66797 10L11.668 5L12.843 6.175Z" fill="black"/></svg></div>
 									<div class="swiper-pagination"></div>
 								</div>
 								<?php if ($property_icon) { ?>

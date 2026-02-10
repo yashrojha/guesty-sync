@@ -91,7 +91,7 @@ function guesty_upsert_property($property) {
 	update_post_meta($post_id, 'guesty_address_zipcode', $property['address']['zipcode']);
 	update_post_meta($post_id, 'guesty_address_lat', $property['address']['lat']);
 	update_post_meta($post_id, 'guesty_address_lng', $property['address']['lng']);
-	update_post_meta($post_id, 'guesty_description_space', $property['publicDescription']['summary']);
+	update_post_meta($post_id, 'guesty_description_space', $property['publicDescription']['space']);
 	update_post_meta($post_id, 'guesty_description_access', $property['publicDescription']['access']);
 	update_post_meta($post_id, 'guesty_description_neighborhood', $property['publicDescription']['neighborhood']);
 	update_post_meta($post_id, 'guesty_description_notes', $property['publicDescription']['notes']);

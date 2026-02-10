@@ -46,12 +46,12 @@ function guesty_map_shortcode_handler() {
 			$icon_id  = get_post_meta(get_the_ID(), 'guesty_property_icon_id', true);
 			$icon_url = $icon_id ? wp_get_attachment_image_url($icon_id, 'thumbnail') : GUESTY_SYNC_URL .'assets/no-icon.png';
 			
-			// Fetch Multiple Images (Limit to 4)
+			// Fetch Multiple Images (Limit to 5)
 			$images = [];
 			$attached_media = get_attached_media('image', get_the_ID());
 			if ($attached_media) {
-				// Only take the first 4 attachments
-				$gallery_limit = array_slice($attached_media, 0, 4);
+				// Only take the first 5 attachments
+				$gallery_limit = array_slice($attached_media, 0, 5);
 				foreach ($gallery_limit as $attachment) {
 					$images[] = wp_get_attachment_image_url($attachment->ID, 'guesty_medium');
 				}

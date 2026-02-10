@@ -6,6 +6,9 @@
 	--e-global-typography-secondary-font-family: "Baskerville Display PT";
 	--e-global-typography-accent-font-family: "League Spartan";
 	--litepicker-day-width: 52px;
+	@media (max-width: 390px){
+		--litepicker-day-width: 42px;
+	}
 	--litepicker-is-start-color-bg: var(--Grey, #767676);
 	--litepicker-is-end-color-bg: var(--Grey, #767676);
 	--litepicker-is-in-range-color: var(--Grey-Light, #C4C4C4);
@@ -175,15 +178,15 @@
 		font-weight: 400;
 		line-height: 1;
 		padding: 19px;
-
+		@media (max-width: 390px){
+			padding: 14px;
+		}
 		&.is-start-date {
 			font-weight: 600;
 		}
-
 		&.is-end-date {
 			font-weight: 600;
 		}
-
 		&.is-in-range {
 			font-weight: 600;
 		}
@@ -191,15 +194,12 @@
 
 	.container__months {
 		width: calc(var(--litepicker-month-width) + 20px);
-
 		&.columns-2 {
 			width: calc((var(--litepicker-month-width) * 2) + 40px);
 		}
-
 		.month-item {
 			padding: 10px;
 		}
-
 		.month-item-header div {
 			color: #000;
 			font-family: var(--e-global-typography-accent-font-family), san-serif;
@@ -209,7 +209,6 @@
 			line-height: 12px;
 			letter-spacing: 1.44px;
 			text-transform: uppercase;
-
 			strong.month-item-name {
 				font-weight: 400;
 			}
@@ -225,6 +224,9 @@
 
 			&>div {
 				padding: 19px 0;
+				@media (max-width: 390px){
+					padding: 14px 0;
+				}
 				text-align: center;
 				font-family: var(--e-global-typography-accent-font-family), san-serif;
 				font-size: 14px;
@@ -356,7 +358,6 @@
 			align-items: center;
 			border-radius: 100px;
 			background: var(--white-60, rgba(255, 255, 255, 0.60));
-
 			&:after {
 				display: none;
 			}
@@ -388,6 +389,10 @@
 	gap: 24px 32px;
 	justify-content: center;
 	flex-wrap: wrap;
+
+	@media (max-width: 768px) {
+		gap: 24px;
+	}
 
 	.region-name {
 		color: var(--Black, #000);
@@ -433,6 +438,11 @@
 	grid-template-columns: repeat(2, 1fr);
 	gap: 64px 20px;
 
+	@media (max-width: 768px) {
+		grid-template-columns: repeat(1, 1fr);
+		gap: 48px;
+	}
+
 	.card-media {
 		position: relative;
 		overflow: hidden;
@@ -474,15 +484,13 @@
 		border: 0.5px solid var(--Black, #000);
 		border-radius: 50%;
 		svg {
-			height: 10px !important;
+			height: 20px !important;
 		}
 	}
 
 	.card-swiper .swiper-button-next::after,
 	.card-swiper .swiper-button-prev::after {
-		font-size: 10px;
-		font-weight: bold;
-		color: #000;
+		display: none;
 	}
 
 	.guesty-card:hover .card-swiper .swiper-button-next,
@@ -537,21 +545,21 @@
 .card-content {
 	padding: 32px 0 24px;
 	border-bottom: 1px solid var(--Grey-Light, #C4C4C4);
-}
-
-.property-title {
-	font-family: var(--e-global-typography-accent-font-family), san-serif;
-	font-weight: 400;
-	font-size: 28px;
-	line-height: 120%;
-	letter-spacing: 1.68px;
-	font-style: normal;
-	text-transform: uppercase;
-	margin: 0 0 24px 0;
-
-	a {
-		text-decoration: none;
-		color: var(--Black, #000);
+	
+	.property-title {
+		font-family: var(--e-global-typography-accent-font-family), san-serif;
+		font-weight: 400;
+		font-size: 28px;
+		line-height: 120%;
+		letter-spacing: 1.68px;
+		font-style: normal;
+		text-transform: uppercase;
+		margin: 0 0 24px 0;
+	
+		a {
+			text-decoration: none;
+			color: var(--Black, #000);
+		}
 	}
 }
 
@@ -613,5 +621,14 @@
 			opacity: 1;
 			width: 100%;
 		}
+	}
+}
+
+#guesty-custom-map {
+	aspect-ratio: 1344 / 832;
+	height: auto;
+	width: 100%;
+	@media (max-width: 768px) {
+		aspect-ratio: 361 / 509;
 	}
 }
