@@ -55,14 +55,14 @@ function guesty_enqueue_admin_assets() {
 /**
  * Enqueue Frontend Assets in Plugin
  */
-add_action('wp_enqueue_scripts', 'guesty_enqueue_frontend_css', 99);
+add_action('wp_enqueue_scripts', 'guesty_enqueue_frontend_css', 100);
 function guesty_enqueue_frontend_css() {
 	// Enqueue CSS
     wp_enqueue_style(
         'frontend-css',
         GUESTY_SYNC_URL . 'includes/forntend/css/frontend.css',
         [],
-        time()
+        filemtime(GUESTY_SYNC_PATH . 'includes/forntend/css/frontend.css')
     );
 	// Enqueue JS (depends on swiper for card sliders)
     wp_enqueue_script(
@@ -85,7 +85,7 @@ function guesty_enqueue_archive_properties_css() {
 	wp_enqueue_style(
 		'guesty-archive-properties-css',
 		GUESTY_SYNC_URL . 'includes/forntend/css/archive-properties.css',
-		array('frontend-css'),
+		[],
 		time()
 	);
 }
