@@ -63,4 +63,32 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 	});
     }
+
+    // Mobile search modal behaviour
+    const searchBox = document.querySelector('.guesty-search-bar-box');
+    const mobileTrigger = document.querySelector('.guesty-search-bar-mobile-trigger');
+    const closeButton = document.querySelector('.guesty-search-modal-close');
+
+    if (searchBox && mobileTrigger && closeButton) {
+        const openModal = () => {
+            searchBox.classList.add('is-open');
+            document.body.classList.add('guesty-search-modal-open');
+            mobileTrigger.setAttribute('aria-expanded', 'true');
+        };
+
+        const closeModal = () => {
+            searchBox.classList.remove('is-open');
+            document.body.classList.remove('guesty-search-modal-open');
+            mobileTrigger.setAttribute('aria-expanded', 'false');
+        };
+
+        mobileTrigger.addEventListener('click', openModal);
+        closeButton.addEventListener('click', closeModal);
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' || event.key === 'Esc') {
+                closeModal();
+            }
+        });
+    }
 });
