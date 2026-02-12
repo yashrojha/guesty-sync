@@ -54,7 +54,7 @@ function guesty_render_search_bar()
 						$display_checkIn = "";
 					}
 					?>
-					<input type="text" id="checkin_date_display" placeholder="Select Date" value="<?php echo esc_attr($display_checkIn); ?>" readonly>
+					<input type="text" id="checkin_date_display" placeholder="Enter date" value="<?php echo esc_attr($display_checkIn); ?>" readonly>
 					<input type="hidden" id="checkin_date" name="checkIn" value="<?php echo esc_attr($selected_checkIn); ?>" readonly>
 				</div>
 				<div class="guesty-field option-date">
@@ -67,7 +67,7 @@ function guesty_render_search_bar()
 						$display_checkOut = "";
 					}
 					?>
-					<input type="text" id="checkout_date_display" placeholder="Select Date" value="<?php echo esc_attr($display_checkOut); ?>" readonly>
+					<input type="text" id="checkout_date_display" placeholder="Enter date" value="<?php echo esc_attr($display_checkOut); ?>" readonly>
 					<input type="hidden" id="checkout_date" name="checkOut" value="<?php echo esc_attr($selected_checkOut); ?>" readonly>
 				</div>
 				<div class="guesty-field option-guests">

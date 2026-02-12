@@ -367,7 +367,7 @@ if (did_action('elementor/loaded')) {
 												$display_checkIn = "";
 											}
 											?>
-											<input type="text" id="booking_checkin_date_display" placeholder="Select Date" value="<?php echo esc_attr($display_checkIn); ?>" readonly>
+											<input type="text" id="booking_checkin_date_display" placeholder="Enter date" value="<?php echo esc_attr($display_checkIn); ?>" readonly>
 											<input type="hidden" id="booking_checkin_date" name="checkIn" value="<?php echo esc_attr($selected_checkIn); ?>" readonly>
 										</div>
 										<div class="guesty-field option-date-2">
@@ -380,7 +380,7 @@ if (did_action('elementor/loaded')) {
 												$display_checkOut = "";
 											}
 											?>
-											<input type="text" id="booking_checkout_date_display" placeholder="Select Date" value="<?php echo esc_attr($display_checkOut); ?>" readonly>
+											<input type="text" id="booking_checkout_date_display" placeholder="Enter date" value="<?php echo esc_attr($display_checkOut); ?>" readonly>
 											<input type="hidden" id="booking_checkout_date" name="checkOut" value="<?php echo esc_attr($selected_checkOut); ?>" readonly>
 										</div>
 										<div class="guesty-field option-guests">
