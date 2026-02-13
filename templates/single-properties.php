@@ -8,6 +8,8 @@ if (did_action('elementor/loaded')) {
 		}
 	}, 20);
 }
+$icon_id = get_post_meta(get_the_id(), 'guesty_property_icon_id', true);
+$icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 ?>
 <?php if (did_action('elementor/loaded')) { ?>
 	<div data-elementor-type="wp-post" data-elementor-id="<?php the_ID(); ?>" class="elementor single-property elementor-<?php the_ID(); ?>">
@@ -186,12 +188,17 @@ if (did_action('elementor/loaded')) {
 																</defs>
 															</svg>
 														</span>
-														VIEW FLOOR PLAN
+														<span class="view-floor-plan-text">VIEW FLOOR PLAN</span>
 													</a>
 												</div>
 											<?php endif; ?>
 											<div class="quick-specs"><?php echo $combined_specs; ?></div>
 										</div>
+										<?php if ($icon_url_full) : ?>
+											<div class="property-icon-wrapper mobile">
+												<img src="<?php echo esc_url($icon_url_full); ?>" alt="Property Icon" class="property-icon">
+											</div>
+										<?php endif; ?>
 										<?php
 										if ($pdf_url) :
 										?>
@@ -260,9 +267,9 @@ if (did_action('elementor/loaded')) {
 									if ($beds = get_post_meta($post_id, 'guesty_beds', true)) $rooms_array[] = $bathrooms . ' BEDS';
 									$combined_rooms = implode(' • ', $rooms_array);
 									?>
-									<div class="accordion-item open-accordion">
+									<div class="accordion-item open-accordion where-you-will-dream">
 										<button class="accordion-header">
-											Where you’ll dream
+											Where you'll dream
 										</button>
 										<div class="accordion-panel">
 											<div class="bedroomSwiper swiper">
@@ -382,9 +389,6 @@ if (did_action('elementor/loaded')) {
 											?>
 											<input type="text" id="booking_checkin_date_display" placeholder="Enter date" value="<?php echo esc_attr($display_checkIn); ?>" readonly>
 											<input type="hidden" id="booking_checkin_date" name="checkIn" value="<?php echo esc_attr($selected_checkIn); ?>" readonly>
-										</div>
-										<div class="guesty-field seprater">
-											-
 										</div>
 										<div class="guesty-field option-date-2">
 											<label>Check Out</label>
@@ -840,7 +844,15 @@ if (did_action('elementor/loaded')) {
 				init: toggleArrows,
 				resize: toggleArrows,
 				slideChange: toggleArrows,
-			}
+			},
+			breakpoints: {
+				0: {
+					slidesPerView: 1.6,
+				},
+				767: {
+					slidesPerView: 2,
+				},
+			},
 		});
 
 		function toggleArrows() {
@@ -976,12 +988,17 @@ if (did_action('elementor/loaded')) {
 
 		@media (max-width: 767px) {
 			flex-direction: column;
+			gap: 0;
+			margin-bottom: 0;
 		}
 	}
 
 	.content-left {
 		width: 100%;
 		overflow: hidden;
+		@media (max-width: 767px) {
+			overflow: visible;
+		}
 	}
 
 	.content-right {
@@ -1010,6 +1027,11 @@ if (did_action('elementor/loaded')) {
 		flex-direction: column;
 		gap: 24px;
 
+		@media (max-width: 767px) {
+			gap: 16px;
+			width: calc(100% - 96px - 16px);
+		}
+
 		.location-label {
 			color: var(--Grey, #767676);
 			font-size: 16px;
@@ -1019,6 +1041,11 @@ if (did_action('elementor/loaded')) {
 			letter-spacing: 1.28px;
 			text-transform: uppercase;
 			margin: 0;
+
+			@media (max-width: 767px) {
+				font-size: 14px;
+				line-height: 120%;
+			}
 		}
 
 		.property-reviews {
@@ -1033,24 +1060,31 @@ if (did_action('elementor/loaded')) {
 			align-items: center;
 			gap: 8px;
 		}
+
+		.quick-specs {
+			font-family: var(--e-global-typography-accent-font-family), san-serif;
+			color: var(--Grey, #767676);
+			font-size: 16px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 100%;
+			letter-spacing: 1.28px;
+			text-transform: uppercase;
+
+			@media (max-width: 767px) {
+				font-size: 14px;
+				line-height: 120%;
+				margin-top: 10px;
+			}
+		}
 	}
 
-	.quick-specs {
-		font-family: var(--e-global-typography-accent-font-family), san-serif;
-		color: var(--Grey, #767676);
-		font-size: 16px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 100%;
-		letter-spacing: 1.28px;
-		text-transform: uppercase;
-	}
 
 	.view-floor-plan-btn {
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		padding: 20px 16px;
+		padding: 18px 16px;
 		border: 1px solid #000;
 		transition: all 0.3s ease;
 		color: var(--Black, #000);
@@ -1060,7 +1094,6 @@ if (did_action('elementor/loaded')) {
 		line-height: 16px;
 		letter-spacing: 0.64px;
 		text-transform: uppercase;
-		min-width: 195px;
 	}
 
 	.view-floor-plan-btn span.icon-floorplan {
@@ -1092,6 +1125,10 @@ if (did_action('elementor/loaded')) {
 
 		.booking-icon {
 			min-width: 155px;
+
+			@media (max-width: 925px) {
+				min-width: 90px;
+			}
 
 			a {
 				display: flex;
@@ -1128,6 +1165,11 @@ if (did_action('elementor/loaded')) {
 		line-height: 30px;
 		letter-spacing: -0.26px;
 		margin-bottom: 8px;
+
+		@media (max-width: 767px) {
+			font-size: 20px;
+			line-height: 24px;
+		}
 	}
 
 	.booking-price .text-tiny {
@@ -1225,7 +1267,7 @@ if (did_action('elementor/loaded')) {
 
 	/* Accordions */
 	.accordion-item {
-		border-bottom: 1px solid var(--Black, #000);
+		border-bottom: 0.5px solid var(--Black, #000);
 	}
 
 	.accordion-header {
@@ -1236,15 +1278,28 @@ if (did_action('elementor/loaded')) {
 		padding: 24px 8px;
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
 		color: var(--Black, #000) !important;
 		font-size: 22px !important;
 		font-weight: 400;
 		line-height: 120% !important;
 		letter-spacing: 1.32px !important;
 		text-transform: uppercase !important;
+
 		span {
 			display: inline-flex;
 			transition: transform 0.25s ease;
+		}
+
+		@media (max-width: 767px) {
+			padding: 18px 8px 16px;
+			font-size: 16px !important;
+			line-height: 100% !important;
+			letter-spacing: 0.96px !important;
+
+			svg {
+				height: 20px;
+			}
 		}
 	}
 
@@ -1275,19 +1330,46 @@ if (did_action('elementor/loaded')) {
 		padding: 39px 0;
 	}
 
-	.open-accordion{
+	.open-accordion.where-you-will-dream {
+		.accordion-panel{overflow: visible;}
+		.accordion-header {
+			font-size: 28px !important;
+			line-height: 120% !important;
+			letter-spacing: 1.68px !important;
+
+			@media (max-width: 767px) {
+				font-size: 24px !important;
+				line-height: 24px !important;
+				letter-spacing: 1.44px !important;
+			}
+		}
+		@media (max-width: 767px) {
+			padding-bottom: 0;
+		}
+	}
+
+	.open-accordion {
+		.accordion-header {
+			@media (max-width: 767px) {
+				font-size: 18px !important;
+				line-height: 120% !important;
+				letter-spacing: 1.08px !important;
+			}
+		}
+
 		button.accordion-header {
 			pointer-events: none;
 			padding: 20px 0;
 		}
-	
+
 		.accordion-panel {
 			height: auto;
 			padding: 0;
 		}
-	} 
+	}
 
 	.bedroomSwiper {
+		overflow: visible;
 		.swiper-button-next,
 		.swiper-button-prev {
 			display: flex;
@@ -1304,11 +1386,23 @@ if (did_action('elementor/loaded')) {
 			&:after {
 				display: none;
 			}
+
+			@media (max-width: 767px) {
+				display: none;
+			}
 		}
 
 		span.quick-specs {
 			margin-bottom: 30px;
 			display: block;
+			font-family: var(--e-global-typography-accent-font-family), san-serif;
+			font-size: 16px;
+			line-height: 100%;
+			letter-spacing: 1.28px;
+			text-transform: uppercase;
+			@media (max-width: 767px) {
+				margin-bottom: 18px;
+			}
 		}
 
 		.swiper-button-next {
@@ -1339,11 +1433,18 @@ if (did_action('elementor/loaded')) {
 			line-height: 100%;
 			letter-spacing: 1.04px;
 			text-transform: uppercase;
+
+			@media (max-width: 767px) {
+				display: none;
+			}
 		}
 
 		.image-preview {
 			display: grid;
 			margin-bottom: 24px;
+			@media (max-width: 767px) {
+				margin-bottom: 14px;
+			}
 		}
 
 		.room-title {
@@ -1356,7 +1457,11 @@ if (did_action('elementor/loaded')) {
 			letter-spacing: 1.32px;
 			text-transform: uppercase;
 			margin: 0;
-			padding-bottom: 16px;
+			padding-bottom: 14px;
+
+			@media (max-width: 767px) {
+				padding-bottom: 10px;
+			}
 		}
 
 		.bed-info {
@@ -1380,7 +1485,7 @@ if (did_action('elementor/loaded')) {
 		line-height: 1.2;
 		letter-spacing: 1.04px;
 		text-transform: uppercase;
-		padding-left: 14px;
+		padding-left: 12px;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 16px;
@@ -1392,6 +1497,7 @@ if (did_action('elementor/loaded')) {
 				display: list-item;
 			}
 		}
+
 		&.show-all {
 			li {
 				display: list-item;
@@ -1418,8 +1524,28 @@ if (did_action('elementor/loaded')) {
 		line-height: 16px;
 		letter-spacing: 0.56px;
 		text-transform: uppercase;
-		padding: 12px 0;
+		padding: 12px 0 0;
 		margin-top: 24px;
+		position: relative;
+
+		&:after {
+			content: '';
+			position: absolute;
+			bottom: -2px;
+			left: 0;
+			width: 40%;
+			height: 1px;
+			opacity: 0;
+			background-color: var(--Black, #000);
+			transition: width 0.3s ease, opacity 0.3s ease;
+		}
+
+		&:hover {
+			&:after {
+				width: 100%;
+				opacity: 1;
+			}
+		}
 	}
 
 
@@ -1429,19 +1555,21 @@ if (did_action('elementor/loaded')) {
 		.guesty-field.option-date,
 		.guesty-field.option-date-2 {
 			border-right: 0;
-			width: 45%;
+			width: 50%;
 		}
 
-		.guesty-field.seprater {
-			border-right: 0;
-			width: 6%;
-			justify-content: flex-end;
-			padding: 6px;
-			color: var(--Grey, #767676);
-			font-size: 20px;
-			font-style: normal;
-			font-weight: 400;
-			line-height: 27px;
+		.guesty-field.option-date-2 {
+			border-left: 1px solid var(--Grey-Light, #C4C4C4);
+		}
+
+		.guesty-field {
+			select {
+				appearance: none;
+				-webkit-appearance: none;
+				-moz-appearance: none;
+				cursor: pointer;
+				background: none;
+			}
 		}
 
 		span.clear-dates {
@@ -1666,6 +1794,15 @@ if (did_action('elementor/loaded')) {
 		}
 	}
 
+	.property-icon-wrapper.mobile {
+		display: none;
+
+		@media (max-width: 767px) {
+			display: block !important;
+			width: 96px;
+		}
+	}
+
 	@media (max-width: 1024px) {
 		.e-con {
 			--container-default-padding-right: 20px;
@@ -1682,21 +1819,24 @@ if (did_action('elementor/loaded')) {
 
 		.floor-plan-wrapper.mobile {
 			display: block !important;
-		}
+			margin-block: 4px 18px;
 
-		.floor-plan-wrapper.mobile .view-floor-plan-btn {
-			padding: 12px;
+			.view-floor-plan-btn {
+				padding: 12px;
+			}
 		}
 	}
 
 	@media (max-width: 767px) {
-		.single-property .e-con {
-			--container-default-padding-right: 16px;
-			--container-default-padding-left: 16px;
-		}
-
-		.single-property .e-con-inner {
-			padding: 0;
+		.single-property {
+			overflow-x: hidden;
+			.e-con {
+				--container-default-padding-right: 16px;
+				--container-default-padding-left: 16px;
+				.e-con-inner {
+					padding: 0;
+				}
+			}
 		}
 
 		.gallery-grid .grid-item.item-2,
@@ -1736,13 +1876,12 @@ if (did_action('elementor/loaded')) {
 			top: 16px;
 			left: 16px;
 			z-index: 1;
-		}
-
-		.property-back-button.mobile a.back-link {
-			padding: 10px;
-			background: #FFF;
-			line-height: 1;
-			display: grid;
+			a.back-link {
+				padding: 10px;
+				background: #FFF;
+				line-height: 1;
+				display: grid;
+			}
 		}
 
 		.property-main-content {
@@ -1767,15 +1906,19 @@ if (did_action('elementor/loaded')) {
 			background: #FFF;
 			z-index: 2;
 			width: 100%;
+			.booking-title {
+				display: none;
+			}
+			.charge-text,.booking-price,.booking-icon {
+				display: none;
+			}
+			&:has(.change-btn:not([style="display: none;"])){
+				.booking-title {
+					display: block;
+				}
+			}
 		}
 
-		.booking-card.sticky-sidebar .booking-card-header {
-			display: none;
-		}
-
-		.booking-card.sticky-sidebar .charge-text {
-			display: none;
-		}
 
 		button.booking-btn {
 			margin: 16px 0 0;

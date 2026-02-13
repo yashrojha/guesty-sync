@@ -33,7 +33,10 @@ if (did_action('elementor/loaded')) {
 					</div>
 
 					<div class="property-grid">
-						<?php if (have_posts()) : while (have_posts()) : the_post();
+						<?php
+						$guesty_has_posts = have_posts();
+						if ($guesty_has_posts) :
+							while (have_posts()) : the_post();
 								// Fetch metadata
 								$guests = get_post_meta(get_the_ID(), 'guesty_accommodates', true);
 								$beds = get_post_meta(get_the_ID(), 'guesty_bedrooms', true);
@@ -98,9 +101,19 @@ if (did_action('elementor/loaded')) {
 										<a href="<?php echo esc_url($link); ?>" class="view-property-link">VIEW PROPERTY</a>
 									</div>
 								</article>
-						<?php endwhile;
-						endif; ?>
+						<?php endwhile; ?>
+						<?php else : ?>
+							<div class="guesty-no-results">
+								<div class="guesty-no-results-inner">
+									<span class="guesty-no-results-icon" aria-hidden="true">—</span>
+									<h2 class="guesty-no-results-title">No properties available</h2>
+									<p class="guesty-no-results-message">Looks like we are fully booked for the dates chosen. Please try other dates. Thank you.</p>
+									<a href="<?php echo esc_url( get_post_type_archive_link( 'properties' ) ); ?>" class="guesty-no-results-btn">Clear Searches</a>
+								</div>
+							</div>
+						<?php endif; ?>
 					</div>
+					<?php if ($guesty_has_posts) : ?>
 					<div class="guesty-pagination">
 						<?php
 						echo paginate_links(array(
@@ -110,6 +123,7 @@ if (did_action('elementor/loaded')) {
 						));
 						?>
 					</div>
+					<?php endif; ?>
 
 					<section class="guesty-archive-map-section">
 						<h2 class="guesty-archive-map-title">Find your perfect spot</h2>
