@@ -20,10 +20,10 @@ require_once GUESTY_SYNC_PATH . 'includes/cron.php';
 require_once GUESTY_SYNC_PATH . 'includes/ajax.php';
 require_once GUESTY_SYNC_PATH . 'includes/cpt-property.php';
 require_once GUESTY_SYNC_PATH . 'includes/sync-properties.php';
-require_once GUESTY_SYNC_PATH . 'includes/forntend/search-bar-code.php';
-require_once GUESTY_SYNC_PATH . 'includes/forntend/property-map-code.php';
-require_once GUESTY_SYNC_PATH . 'includes/forntend/featured-properties-code.php';
-require_once GUESTY_SYNC_PATH . 'includes/forntend/trending-regions-code.php';
+require_once GUESTY_SYNC_PATH . 'includes/frontend/search-bar-code.php';
+require_once GUESTY_SYNC_PATH . 'includes/frontend/property-map-code.php';
+require_once GUESTY_SYNC_PATH . 'includes/frontend/featured-properties-code.php';
+require_once GUESTY_SYNC_PATH . 'includes/frontend/trending-regions-code.php';
 
 /**
  * Enqueue Admin Assets in Plugin
@@ -60,14 +60,14 @@ function guesty_enqueue_frontend_css() {
 	// Enqueue CSS
     wp_enqueue_style(
         'frontend-css',
-        GUESTY_SYNC_URL . 'includes/forntend/css/frontend.css',
+        GUESTY_SYNC_URL . 'includes/frontend/css/frontend.css',
         [],
-        filemtime(GUESTY_SYNC_PATH . 'includes/forntend/css/frontend.css')
+        filemtime(GUESTY_SYNC_PATH . 'includes/frontend/css/frontend.css')
     );
 	// Enqueue JS (depends on swiper for card sliders)
     wp_enqueue_script(
         'frontend-js',
-        GUESTY_SYNC_URL . 'includes/forntend/js/frontend.js',
+        GUESTY_SYNC_URL . 'includes/frontend/js/frontend.js',
         array('swiper-js'),
         time(),
         true // Load in footer
@@ -84,7 +84,7 @@ function guesty_enqueue_archive_properties_css() {
 	}
 	wp_enqueue_style(
 		'guesty-archive-properties-css',
-		GUESTY_SYNC_URL . 'includes/forntend/css/archive-properties.css',
+		GUESTY_SYNC_URL . 'includes/frontend/css/archive-properties.css',
 		[],
 		time()
 	);
@@ -98,14 +98,14 @@ function guesty_enqueue_swiper_assets() {
     // Enqueue CSS
     wp_enqueue_style(
         'swiper-css',
-        GUESTY_SYNC_URL . 'includes/forntend/css/swiper-bundle.min.css',
+        GUESTY_SYNC_URL . 'includes/frontend/css/swiper-bundle.min.css',
         [],
         '11.0.0'
     );
     // Enqueue JS
     wp_enqueue_script(
         'swiper-js',
-        GUESTY_SYNC_URL . 'includes/forntend/js/swiper-bundle.min.js',
+        GUESTY_SYNC_URL . 'includes/frontend/js/swiper-bundle.min.js',
         [],
         '11.0.0',
         true // Load in footer
@@ -120,14 +120,14 @@ function guesty_enqueue_litepicker_assets() {
     // Enqueue CSS
     wp_enqueue_style(
         'litepicker-css',
-        GUESTY_SYNC_URL . 'includes/forntend/css/litepicker.css',
+        GUESTY_SYNC_URL . 'includes/frontend/css/litepicker.css',
         [],
         '2.0.12'
     );
     // Enqueue JS
     wp_enqueue_script(
         'litepicker-js',
-        GUESTY_SYNC_URL . 'includes/forntend/js/litepicker.js',
+        GUESTY_SYNC_URL . 'includes/frontend/js/litepicker.js',
         [],
         '4.6.13',
         true // Load in footer
