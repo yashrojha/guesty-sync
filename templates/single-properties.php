@@ -1,5 +1,4 @@
-<?php get_header(); ?>
-<?php
+<?php get_header();
 if (did_action('elementor/loaded')) {
 	add_action('wp_enqueue_scripts', function () {
 		if (is_singular('properties')) {
@@ -787,9 +786,9 @@ if (did_action('elementor/loaded')) {
 							list.insertAdjacentHTML(
 								'beforeend',
 								`<li>
-						${item.title}
-						<span>${formatAUD(item.amount)}</span>
-					  </li>`
+									${item.title}
+									<span>${formatAUD(item.amount)}</span>
+								</li>`
 							);
 						});
 				}
@@ -1010,30 +1009,30 @@ if (did_action('elementor/loaded')) {
 		display: flex;
 		flex-direction: column;
 		gap: 24px;
-	}
 
-	.property-features .location-label {
-		color: var(--Grey, #767676);
-		font-size: 16px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 100%;
-		letter-spacing: 1.28px;
-		text-transform: uppercase;
-		margin: 0;
-	}
+		.location-label {
+			color: var(--Grey, #767676);
+			font-size: 16px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 100%;
+			letter-spacing: 1.28px;
+			text-transform: uppercase;
+			margin: 0;
+		}
 
-	.property-features .property-reviews {
-		color: var(--Grey, #767676);
-		font-size: 13px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 100%;
-		letter-spacing: 1.04px;
-		text-transform: uppercase;
-		display: flex;
-		align-items: center;
-		gap: 8px;
+		.property-reviews {
+			color: var(--Grey, #767676);
+			font-size: 13px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 100%;
+			letter-spacing: 1.04px;
+			text-transform: uppercase;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
 	}
 
 	.quick-specs {
@@ -1104,13 +1103,13 @@ if (did_action('elementor/loaded')) {
 				}
 			}
 		}
-	}
 
-	.booking-card-header .price-header {
-		display: flex;
-		flex-direction: column;
-		gap: 24px;
-		justify-content: space-between;
+		.price-header {
+			display: flex;
+			flex-direction: column;
+			gap: 24px;
+			justify-content: space-between;
+		}
 	}
 
 	.price-header .booking-title {
@@ -1243,11 +1242,10 @@ if (did_action('elementor/loaded')) {
 		line-height: 120% !important;
 		letter-spacing: 1.32px !important;
 		text-transform: uppercase !important;
-	}
-
-	.accordion-header span {
-		display: inline-flex;
-		transition: transform 0.25s ease;
+		span {
+			display: inline-flex;
+			transition: transform 0.25s ease;
+		}
 	}
 
 	.accordion-item.active .accordion-header span {
@@ -1277,96 +1275,100 @@ if (did_action('elementor/loaded')) {
 		padding: 39px 0;
 	}
 
-	.open-accordion button.accordion-header {
-		pointer-events: none;
-		padding: 20px 0;
-	}
-
-	.open-accordion .accordion-panel {
-		height: auto;
-		padding: 0;
-	}
-
-	.bedroomSwiper .swiper-button-next,
-	.bedroomSwiper .swiper-button-prev {
-		display: flex;
-		width: 28px;
-		height: 28px;
-		padding: 3px;
-		justify-content: center;
-		align-items: center;
-		aspect-ratio: 1 / 1;
-		border-radius: 100px;
-		border: 0.5px solid var(--Black, #000);
-		background: var(--white-60, rgba(255, 255, 255, 0.60));
-
-		&:after {
-			display: none;
+	.open-accordion{
+		button.accordion-header {
+			pointer-events: none;
+			padding: 20px 0;
 		}
-	}
+	
+		.accordion-panel {
+			height: auto;
+			padding: 0;
+		}
+	} 
 
-	.bedroomSwiper span.quick-specs {
-		margin-bottom: 30px;
-		display: block;
-	}
+	.bedroomSwiper {
+		.swiper-button-next,
+		.swiper-button-prev {
+			display: flex;
+			width: 28px;
+			height: 28px;
+			padding: 3px;
+			justify-content: center;
+			align-items: center;
+			aspect-ratio: 1 / 1;
+			border-radius: 100px;
+			border: 0.5px solid var(--Black, #000);
+			background: var(--white-60, rgba(255, 255, 255, 0.60));
 
-	.bedroomSwiper .swiper-button-next {
-		position: absolute;
-		top: 23px;
-		right: 0;
-	}
+			&:after {
+				display: none;
+			}
+		}
 
-	.bedroomSwiper .swiper-button-prev {
-		position: absolute;
-		top: 23px;
-		right: 40px;
-		left: unset;
-	}
+		span.quick-specs {
+			margin-bottom: 30px;
+			display: block;
+		}
 
-	.bedroomSwiper .swiper-pagination {
-		position: absolute;
-		top: 10px;
-		bottom: unset;
-		width: fit-content;
-		right: 85px;
-		left: unset;
-		color: var(--Grey, #767676);
-		font-family: var(--e-global-typography-accent-font-family), san-serif;
-		font-size: 13px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 100%;
-		letter-spacing: 1.04px;
-		text-transform: uppercase;
-	}
+		.swiper-button-next {
+			position: absolute;
+			top: 23px;
+			right: 0;
+		}
 
-	.bedroomSwiper .image-preview {
-		display: grid;
-		margin-bottom: 24px;
-	}
+		.swiper-button-prev {
+			position: absolute;
+			top: 23px;
+			right: 40px;
+			left: unset;
+		}
 
-	.bedroomSwiper .room-title {
-		color: var(--Black, #000);
-		font-family: "League Spartan";
-		font-size: 22px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 120%;
-		letter-spacing: 1.32px;
-		text-transform: uppercase;
-		margin: 0;
-		padding-bottom: 16px;
-	}
+		.swiper-pagination {
+			position: absolute;
+			top: 10px;
+			bottom: unset;
+			width: fit-content;
+			right: 85px;
+			left: unset;
+			color: var(--Grey, #767676);
+			font-family: var(--e-global-typography-accent-font-family), san-serif;
+			font-size: 13px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 100%;
+			letter-spacing: 1.04px;
+			text-transform: uppercase;
+		}
 
-	.bedroomSwiper .bed-info {
-		color: var(--Grey, #767676);
-		font-family: var(--e-global-typography-accent-font-family), san-serif;
-		font-size: 13px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 100%;
-		letter-spacing: 1.04px;
-		text-transform: uppercase;
+		.image-preview {
+			display: grid;
+			margin-bottom: 24px;
+		}
+
+		.room-title {
+			color: var(--Black, #000);
+			font-family: "League Spartan";
+			font-size: 22px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 120%;
+			letter-spacing: 1.32px;
+			text-transform: uppercase;
+			margin: 0;
+			padding-bottom: 16px;
+		}
+
+		.bed-info {
+			color: var(--Grey, #767676);
+			font-family: var(--e-global-typography-accent-font-family), san-serif;
+			font-size: 13px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 100%;
+			letter-spacing: 1.04px;
+			text-transform: uppercase;
+		}
 	}
 
 	ul.amenities-list {
@@ -1382,6 +1384,19 @@ if (did_action('elementor/loaded')) {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 16px;
+
+		li {
+			display: none;
+
+			&:nth-child(-n+6) {
+				display: list-item;
+			}
+		}
+		&.show-all {
+			li {
+				display: list-item;
+			}
+		}
 	}
 
 	.open-accordion button.accordion-header.amenities {
@@ -1390,18 +1405,6 @@ if (did_action('elementor/loaded')) {
 
 	li.amenity-item {
 		width: calc(50% - 8px);
-	}
-
-	ul.amenities-list li {
-		display: none;
-	}
-
-	ul.amenities-list li:nth-child(-n+6) {
-		display: list-item;
-	}
-
-	.amenities-list.show-all li {
-		display: list-item;
 	}
 
 	button.show-all-amenities {
@@ -1422,56 +1425,57 @@ if (did_action('elementor/loaded')) {
 
 	.date-picker-mock {
 		position: relative;
+
+		.guesty-field.option-date,
+		.guesty-field.option-date-2 {
+			border-right: 0;
+			width: 45%;
+		}
+
+		.guesty-field.seprater {
+			border-right: 0;
+			width: 6%;
+			justify-content: flex-end;
+			padding: 6px;
+			color: var(--Grey, #767676);
+			font-size: 20px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 27px;
+		}
+
+		span.clear-dates {
+			position: absolute;
+			right: 0;
+			top: 25px;
+			cursor: pointer;
+		}
 	}
 
-	.date-picker-mock .guesty-field.option-date,
-	.date-picker-mock .guesty-field.option-date-2 {
-		border-right: 0;
-		width: 45%;
-	}
-
-	.date-picker-mock .guesty-field.seprater {
-		border-right: 0;
-		width: 6%;
-		justify-content: flex-end;
-		padding: 6px;
-		color: var(--Grey, #767676);
-		font-size: 20px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 27px;
-	}
-
-	.date-picker-mock span.clear-dates {
-		position: absolute;
-		right: 0;
-		top: 25px;
-		cursor: pointer;
-	}
 
 	.spinner {
 		display: flex;
 		min-height: 16px;
 		align-items: center;
-	}
 
-	.spinner>div {
-		background-color: #000;
-		width: 10px;
-		height: 10px;
-		border-radius: 100%;
-		-webkit-animation: sk-bouncedelay 1.4s infinite ease-in-out both;
-		animation: sk-bouncedelay 1.4s infinite ease-in-out both;
-	}
+		&>div {
+			background-color: #000;
+			width: 10px;
+			height: 10px;
+			border-radius: 100%;
+			-webkit-animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+			animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+		}
 
-	.spinner .bounce1 {
-		-webkit-animation-delay: -0.32s;
-		animation-delay: -0.32s;
-	}
+		& .bounce1 {
+			-webkit-animation-delay: -0.32s;
+			animation-delay: -0.32s;
+		}
 
-	.spinner .bounce2 {
-		-webkit-animation-delay: -0.16s;
-		animation-delay: -0.16s;
+		& .bounce2 {
+			-webkit-animation-delay: -0.16s;
+			animation-delay: -0.16s;
+		}
 	}
 
 	@-webkit-keyframes sk-bouncedelay {
@@ -1516,26 +1520,27 @@ if (did_action('elementor/loaded')) {
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+
+		label {
+			color: var(--Black, #000);
+			font-family: "League Spartan";
+			font-size: 10px;
+			font-style: normal;
+			font-weight: 500;
+			line-height: 16px;
+			letter-spacing: 0.2px;
+			text-transform: uppercase;
+		}
+
+		div {
+			color: var(--Black, #000);
+			font-size: 20px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 27px;
+		}
 	}
 
-	.booking-item label {
-		color: var(--Black, #000);
-		font-family: "League Spartan";
-		font-size: 10px;
-		font-style: normal;
-		font-weight: 500;
-		line-height: 16px;
-		letter-spacing: 0.2px;
-		text-transform: uppercase;
-	}
-
-	.booking-item div {
-		color: var(--Black, #000);
-		font-size: 20px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 27px;
-	}
 
 	.notify-box {
 		font-size: 14px;
@@ -1615,10 +1620,10 @@ if (did_action('elementor/loaded')) {
 		max-height: 0;
 		overflow: hidden;
 		transition: max-height 0.3s ease;
-	}
 
-	.collapseExample.open {
-		max-height: 600px;
+		&.open {
+			max-height: 600px;
+		}
 	}
 
 	.collapseExample ul {
@@ -1628,21 +1633,21 @@ if (did_action('elementor/loaded')) {
 		flex-direction: column;
 		gap: 10px;
 		margin-top: 0;
-	}
 
-	.collapseExample ul li {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		justify-content: space-between;
-		color: var(--Black, #000);
-		font-size: 16px;
-		font-style: normal;
-		font-weight: 400;
-		line-height: 150%;
+		li {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			justify-content: space-between;
+			color: var(--Black, #000);
+			font-size: 16px;
+			font-style: normal;
+			font-weight: 400;
+			line-height: 150%;
 
-		span {
-			font-size: 18px;
+			span {
+				font-size: 18px;
+			}
 		}
 	}
 
