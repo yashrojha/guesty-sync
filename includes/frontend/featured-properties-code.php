@@ -61,7 +61,7 @@ function guesty_render_featured_properties() {
 								<p class="property-city"><a href="<?php echo esc_url(home_url('/properties')) . '?city=' . esc_attr($city); ?>"><?php echo esc_html(strtoupper($city)); ?></a></p>
 								
 								<div class="property-excerpt">
-									<?php echo wp_trim_words(get_the_excerpt($post_id), 20); ?>
+									<?php echo wp_trim_words(get_the_excerpt($post_id), 40); ?>
 								</div>
 
 								<div class="property-specs-bar">

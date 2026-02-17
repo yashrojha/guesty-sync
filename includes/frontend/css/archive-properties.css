@@ -7,6 +7,9 @@
 	max-width: 100%;
 	margin: 0 auto;
 	padding: 62px 0 0;
+	@media (max-width: 768px) {
+		padding: 48px 0 0;
+	}
 }
 .archive-controls {
 	display: flex;
@@ -60,6 +63,9 @@
 }
 .archive-search-container{
 	padding-bottom: 67px;
+	@media (max-width: 768px) {
+		padding-bottom: 48px;
+	}
 }
 
 /* No results state */

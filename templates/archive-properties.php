@@ -9,6 +9,7 @@ if (did_action('elementor/loaded')) {
 		}
 	}, 20);
 }
+$region = $_GET['city'] ?? '';
 ?>
 <?php if (did_action('elementor/loaded')) { ?>
 	<div data-elementor-type="wp-post" data-elementor-id="<?php the_ID(); ?>" class="elementor elementor-<?php the_ID(); ?>">
@@ -23,7 +24,7 @@ if (did_action('elementor/loaded')) {
 					</div>
 
 					<div class="archive-controls">
-						<span class="region-label">ALL REGIONS</span>
+						<span class="region-label"><?php if (!empty($region)) { echo strtoupper($region); } else { echo 'ALL REGIONS'; } ?></span>
 						<span class="filter-trigger">
 							<svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 21 21" fill="none">
 								<path d="M6.125 9.625H14.875V11.375H6.125V9.625ZM3.5 6.125H17.5V7.875H3.5V6.125ZM8.75 13.125H12.25V14.875H8.75V13.125Z" fill="black" />
@@ -91,7 +92,7 @@ if (did_action('elementor/loaded')) {
 										<p class="property-city"><a href="<?php echo esc_url(home_url('/properties')) . '?city=' . esc_attr($city); ?>"><?php echo esc_html(strtoupper($city)); ?></a></p>
 
 										<div class="property-excerpt">
-											<?php echo wp_trim_words(get_the_excerpt(), 20); ?>
+											<?php echo wp_trim_words(get_the_excerpt(), 40); ?>
 										</div>
 
 										<div class="property-specs-bar">

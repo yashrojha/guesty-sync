@@ -894,6 +894,12 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		padding-top: 14px;
 	}
 
+	.single-properties .f-button.is-arrow {
+		@media (max-width: 767px) {
+			display: none;
+		}
+	}
+
 	.property-back-button {
 		margin-bottom: 24px;
 	}
@@ -1004,6 +1010,12 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 	.content-right {
 		max-width: 440px;
 		width: 100%;
+		@media (max-width: 1024px) {
+			max-width: 380px;
+		}
+		@media (max-width: 800px) {
+			max-width: 300px;
+		}
 	}
 
 	.property-header h1.title {
@@ -1071,7 +1083,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			letter-spacing: 1.28px;
 			text-transform: uppercase;
 
-			@media (max-width: 767px) {
+			@media (max-width: 1024px) {
 				font-size: 14px;
 				line-height: 120%;
 				margin-top: 10px;
@@ -1116,6 +1128,9 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		border: 0.5px solid var(--Black, #000);
 		background: var(--White, #FFF);
 		padding: 32px 24px;
+		@media (max-width: 1024px) {
+			padding: 24px 16px;
+		}
 	}
 
 	.booking-card-header {
@@ -1146,6 +1161,9 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			flex-direction: column;
 			gap: 24px;
 			justify-content: space-between;
+			@media (max-width: 1024px) {
+				gap: 16px;
+			}
 		}
 	}
 
@@ -1155,6 +1173,15 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		font-size: 22px;
 		line-height: 120%;
 		letter-spacing: 1.32px;
+		@media (max-width: 1024px) {
+			font-size: 20px;
+			line-height: 24px;
+		}
+
+		@media (max-width: 800px) {
+			font-size: 18px;
+			line-height: 22px;
+		}
 	}
 
 	.booking-price .text-x-large {
@@ -1166,9 +1193,14 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		letter-spacing: -0.26px;
 		margin-bottom: 8px;
 
-		@media (max-width: 767px) {
+		@media (max-width: 1024px) {
 			font-size: 20px;
 			line-height: 24px;
+		}
+
+		@media (max-width: 800px) {
+			font-size: 18px;
+			line-height: 22px;
 		}
 	}
 
