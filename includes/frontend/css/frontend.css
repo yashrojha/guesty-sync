@@ -653,6 +653,10 @@ body.guesty-search-modal-open {
 		height: 400px;
 		width: 100%;
 		transition: all 0.4s ease-in-out;
+		@media (max-width: 1250px) {
+			height: auto;
+			aspect-ratio: 662 / 438;
+		}
 	}
 
 	.card-swiper {
@@ -772,6 +776,10 @@ body.guesty-search-modal-open {
 .card-content {
 	padding: 32px 0 24px;
 	border-bottom: 1px solid var(--Grey-Light, #C4C4C4);
+	
+	@media (min-width: 768px) {
+		padding-right: 72px;
+	}
 
 	.property-title {
 		font-family: var(--e-global-typography-accent-font-family), san-serif;
@@ -815,6 +823,10 @@ body.guesty-search-modal-open {
 	letter-spacing: 1.28px;
 	margin-bottom: 24px;
 
+	@media (max-width: 768px) {
+		font-size: 14px;
+	}
+
 	a {
 		text-decoration: none;
 		color: var(--Grey, #767676);
@@ -829,9 +841,14 @@ body.guesty-search-modal-open {
 	font-family: var(--e-global-typography-accent-font-family), san-serif;
 	letter-spacing: 1.04px;
 	margin-bottom: 22px;
+	line-break: anywhere;
 	@media (max-width: 768px) {
-		line-height: 18px;
+		line-height: 14px;
+		font-size: 12px;
 	}
+}
+.property-specs-bar .spec-item {
+	white-space: nowrap;
 }
 
 .view-property-link {

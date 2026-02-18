@@ -8,12 +8,13 @@
 	margin: 0 auto;
 	padding: 62px 0 0;
 	@media (max-width: 768px) {
-		padding: 48px 0 0;
+		padding: 38px 0 0;
 	}
 }
 .archive-controls {
 	display: flex;
 	justify-content: space-between;
+	align-items: center;
 	font-family: var(--e-global-typography-accent-font-family), san-serif;
 	margin-bottom: 34px;
 	font-size: 22px;
@@ -138,8 +139,11 @@
 }
 .guesty-archive-map-section {
 	margin: 112px 0 100px;
-	padding-top: 112px;
+	padding-top: 64px;
 	border-top: 0.5px solid #000;
+	@media (max-width: 768px) {
+		margin: 64px 0 40px;
+	}
 	.guesty-archive-map-title {
 		margin: 0 0 62px;
 		font-size: 28px;
@@ -150,5 +154,9 @@
 		font-style: normal;
 		text-align: center;
 		text-transform: uppercase;
+		@media (max-width: 768px) {
+			font-size: 24px;
+			margin: 0 0 44px;
+		}
 	}
 }

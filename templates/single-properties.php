@@ -57,7 +57,8 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 									<div class="property-back-button mobile" style="display: none;">
 										<a href="<?php echo esc_url(get_post_type_archive_link('properties')); ?>" class="back-link"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
 												<path d="M4.871 7.22859L14 7.22859L14 8.77141L4.871 8.77141L8.894 12.9092L7.8335 14L2 8L7.8335 2L8.894 3.09077L4.871 7.22859Z" fill="black" />
-											</svg></a>
+											</svg>
+										</a>
 									</div>
 									<?php foreach ($display_images as $attachment) :
 										$full_url = wp_get_attachment_image_url($attachment->ID, 'full');
@@ -100,7 +101,14 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 								if ($guests = get_post_meta($post_id, 'guesty_accommodates', true)) $specs_array[] = $guests . ' GUESTS';
 								if ($bedrooms = get_post_meta($post_id, 'guesty_bedrooms', true)) $specs_array[] = $bedrooms . ' BEDROOMS';
 								if ($bathrooms = get_post_meta($post_id, 'guesty_bathrooms', true)) $specs_array[] = $bathrooms . ' BATHROOMS';
-								$combined_specs = implode(' • ', $specs_array);
+								// Build specs as spans so each item wraps as a whole (no mid-item line breaks)
+								$combined_specs = '';
+								if ( ! empty( $specs_array ) ) {
+									$combined_specs .= '<span class="spec-item">' . esc_html( $specs_array[0] ); if(count( $specs_array ) > 1) { $combined_specs .= '&nbsp;•&nbsp;'; } $combined_specs .= '</span>';
+									for ( $i = 1; $i < count( $specs_array ); $i++ ) {
+										$combined_specs .= '<span class="spec-item">' . esc_html( $specs_array[ $i ] ); if($i < count( $specs_array ) - 1) { $combined_specs .= '&nbsp;•&nbsp;'; } $combined_specs .= '</span>';
+									}
+								}
 
 								// 1. Get existing meta
 								$reviews_count = get_post_meta($post_id, 'guesty_property_reviews_count', true);
@@ -192,11 +200,13 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 													</a>
 												</div>
 											<?php endif; ?>
-											<div class="quick-specs"><?php echo $combined_specs; ?></div>
+											<div class="quick-specs"><?php echo $combined_specs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when building spans ?></div>
 										</div>
 										<?php if ($icon_url_full) : ?>
 											<div class="property-icon-wrapper mobile">
-												<img src="<?php echo esc_url($icon_url_full); ?>" alt="Property Icon" class="property-icon">
+												<a href="<?php echo esc_url($icon_url_full); ?>" data-fancybox="mobile-property-icon">
+													<img src="<?php echo esc_url($icon_url_full); ?>" alt="Property Icon" class="property-icon">
+												</a>
 											</div>
 										<?php endif; ?>
 										<?php
@@ -368,7 +378,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 										<?php if ($icon_url_full) : ?>
 											<div class="booking-icon">
 												<a href="<?php echo esc_url($icon_url_full); ?>" data-fancybox="property-icon">
-													<img src="<?php echo esc_url($icon_url_thumb); ?>" alt="Property Icon" />
+													<img src="<?php echo esc_url($icon_url_full); ?>" alt="Property Icon" />
 												</a>
 											</div>
 										<?php endif; ?>
@@ -1031,7 +1041,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		justify-content: space-between;
 		gap: 20px;
 		font-family: var(--e-global-typography-accent-font-family), san-serif;
-		margin-bottom: 30px;
+		margin-bottom: 28px;
 	}
 
 	.property-features {
@@ -1071,6 +1081,10 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			display: flex;
 			align-items: center;
 			gap: 8px;
+			@media (max-width: 767px) {
+				font-size: 12px;
+				letter-spacing: 0.96px;
+			}
 		}
 
 		.quick-specs {
@@ -1079,18 +1093,26 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			font-size: 16px;
 			font-style: normal;
 			font-weight: 400;
-			line-height: 100%;
+			line-height: 120%;
 			letter-spacing: 1.28px;
 			text-transform: uppercase;
-
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px 0;
+			.spec-item {
+				white-space: nowrap;
+				letter-spacing: 0.96px;
+			}
 			@media (max-width: 1024px) {
 				font-size: 14px;
 				line-height: 120%;
 				margin-top: 10px;
 			}
+			@media (max-width: 767px) {
+				margin-top: 0;
+			}
 		}
 	}
-
 
 	.view-floor-plan-btn {
 		display: inline-flex;
@@ -1139,10 +1161,10 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		margin-bottom: 20px;
 
 		.booking-icon {
-			min-width: 155px;
+			width: 155px;
 
 			@media (max-width: 925px) {
-				min-width: 90px;
+				width: 90px;
 			}
 
 			a {
@@ -1300,6 +1322,9 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 	/* Accordions */
 	.accordion-item {
 		border-bottom: 0.5px solid var(--Black, #000);
+		&:first-child{
+			border-top: 0.5px solid var(--Black, #000);
+		}
 	}
 
 	.accordion-header {
@@ -1373,6 +1398,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 				font-size: 24px !important;
 				line-height: 24px !important;
 				letter-spacing: 1.44px !important;
+				padding-top: 0;
 			}
 		}
 		@media (max-width: 767px) {
@@ -1414,6 +1440,17 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			border-radius: 100px;
 			border: 0.5px solid var(--Black, #000);
 			background: var(--white-60, rgba(255, 255, 255, 0.60));
+
+			svg path{
+				transition: fill 0.5s ease;
+			}
+
+			&:hover{
+				background: var(--Black, #000);
+				svg path{
+					fill: var(--White, #FFF);
+				}
+			}
 
 			&:after {
 				display: none;
@@ -1474,6 +1511,11 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		.image-preview {
 			display: grid;
 			margin-bottom: 24px;
+			img{
+				aspect-ratio: 3 / 4;
+				object-fit: cover;
+				height: 320px;
+			}
 			@media (max-width: 767px) {
 				margin-bottom: 14px;
 			}
@@ -1851,7 +1893,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 
 		.floor-plan-wrapper.mobile {
 			display: block !important;
-			margin-block: 4px 18px;
+			margin-block: 4px 12px;
 
 			.view-floor-plan-btn {
 				padding: 12px;
@@ -1941,11 +1983,11 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			.booking-title {
 				display: none;
 			}
-			.charge-text,.booking-price,.booking-icon {
+			.charge-text,.booking-price,.booking-icon,.booking-card-header {
 				display: none;
 			}
 			&:has(.change-btn:not([style="display: none;"])){
-				.booking-title {
+				.booking-title,.booking-card-header {
 					display: block;
 				}
 			}

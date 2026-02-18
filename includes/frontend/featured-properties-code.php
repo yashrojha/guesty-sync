@@ -20,6 +20,27 @@ function guesty_render_featured_properties() {
 							$baths = get_post_meta($post_id, 'guesty_bathrooms', true);
 							$city = get_post_meta($post_id, 'guesty_address_city', true);
 							$type = get_post_meta($post_id, 'guesty_property_type', true);
+							// Build specs as spans so each item wraps as a unit
+							$specs_array = [];
+							if ($type) {
+								$specs_array[] = strtoupper($type);
+							}
+							if ($guests) {
+								$specs_array[] = $guests . ' GUESTS';
+							}
+							if ($beds) {
+								$specs_array[] = $beds . ' BEDROOMS';
+							}
+							if ($baths) {
+								$specs_array[] = $baths . ' BATHROOMS';
+							}
+							$property_specs = '';
+							if (!empty($specs_array)) {
+								$property_specs .= '<span class="spec-item">' . esc_html($specs_array[0]) . '</span>';
+								for ($i = 1; $i < count($specs_array); $i++) {
+									$property_specs .= '<span class="spec-item"> • ' . esc_html($specs_array[$i]) . '</span>';
+								}
+							}
 							$property_icon = get_post_meta($post_id, 'guesty_property_icon_id', true);
 							$gallery_ids = (array) get_post_meta($post_id, 'guesty_gallery_ids', true);
 							$gallery_ids = array_filter(array_map('intval', $gallery_ids));
@@ -65,7 +86,7 @@ function guesty_render_featured_properties() {
 								</div>
 
 								<div class="property-specs-bar">
-									<?php echo strtoupper($type); ?> • <?php echo $guests; ?> GUESTS • <?php echo $beds; ?> BEDROOMS • <?php echo $baths; ?> BATHROOMS
+									<?php echo $property_specs; // escaped when building spans ?>
 								</div>
 
 								<a href="<?php echo get_the_permalink($post_id); ?>" class="view-property-link">VIEW PROPERTY</a>

@@ -48,7 +48,7 @@ $region = $_GET['city'] ?? '';
 								$params = $_GET;
 								$link = get_permalink(get_the_ID());
 								if (!empty($params)) {
-								  $link = add_query_arg($params, $link);
+									$link = add_query_arg($params, $link);
 								}
 						?>
 								<?php
@@ -57,6 +57,18 @@ $region = $_GET['city'] ?? '';
 									$card_images = array_slice($gallery_ids, 0, 5);
 									if (empty($card_images) && has_post_thumbnail()) {
 										$card_images = [get_post_thumbnail_id()];
+									}
+									$specs_array = [];
+									if ($type) $specs_array[] = strtoupper($type);
+									if ($guests) $specs_array[] = $guests . ' GUESTS';
+									if ($beds) $specs_array[] = $beds . ' BEDROOMS';
+									if ($baths) $specs_array[] = $baths . ' BATHROOMS';
+									$property_specs = '';
+									if (!empty($specs_array)) {
+										$property_specs .= '<span class="spec-item">' . esc_html($specs_array[0]) . '</span>';
+										for ($i = 1; $i < count($specs_array); $i++) {
+											$property_specs .= '<span class="spec-item"> • ' . esc_html($specs_array[$i]) . '</span>';
+										}
 									}
 								?>
 								<article class="guesty-card">
@@ -96,7 +108,7 @@ $region = $_GET['city'] ?? '';
 										</div>
 
 										<div class="property-specs-bar">
-											<?php echo strtoupper($type); ?> • <?php echo $guests; ?> GUESTS • <?php echo $beds; ?> BEDROOMS • <?php echo $baths; ?> BATHROOMS
+											<?php echo $property_specs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when building spans ?>
 										</div>
 
 										<a href="<?php echo esc_url($link); ?>" class="view-property-link">VIEW PROPERTY</a>
