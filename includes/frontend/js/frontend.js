@@ -2,16 +2,24 @@
  * Register the Frontend Dateselect js
  */
 document.addEventListener('DOMContentLoaded', function () {
-    // Card Swiper (archive + featured) - arrows and pagination on hover
+    // Card Swiper (archive + featured)
     if (typeof Swiper !== 'undefined') {
+        // Treat <768px as "mobile" for autoplay + UI tweaks
+        var isMobile = window.matchMedia('(max-width: 767px)').matches;
+
         document.querySelectorAll('.card-swiper').forEach(function (el) {
             var slides = el.querySelectorAll('.swiper-slide');
             if (slides.length === 0) return;
             if (slides.length === 1) el.classList.add('single-slide');
+
             new Swiper(el, {
                 slidesPerView: 1,
                 spaceBetween: 0,
                 loop: slides.length > 1,
+                autoplay: isMobile && slides.length > 1 ? {
+                    delay: 3000,
+                    disableOnInteraction: false,
+                } : false,
                 navigation: {
                     nextEl: el.querySelector('.swiper-button-next'),
                     prevEl: el.querySelector('.swiper-button-prev'),

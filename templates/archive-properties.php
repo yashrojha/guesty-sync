@@ -25,12 +25,12 @@ $region = $_GET['city'] ?? '';
 
 					<div class="archive-controls">
 						<span class="region-label"><?php if (!empty($region)) { echo strtoupper($region); } else { echo 'ALL REGIONS'; } ?></span>
-						<span class="filter-trigger">
+						<!-- <span class="filter-trigger">
 							<svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 21 21" fill="none">
 								<path d="M6.125 9.625H14.875V11.375H6.125V9.625ZM3.5 6.125H17.5V7.875H3.5V6.125ZM8.75 13.125H12.25V14.875H8.75V13.125Z" fill="black" />
 							</svg>
 							<span>FILTER</span>
-						</span>
+						</span> -->
 					</div>
 
 					<div class="property-grid">

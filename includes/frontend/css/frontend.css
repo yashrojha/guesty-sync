@@ -691,11 +691,15 @@ body.guesty-search-modal-open {
 		width: 28px;
 		height: 28px;
 		background: var(--white-60, rgba(255, 255, 255, 0.60));
-		border: 0.5px solid var(--Black, #000);
 		border-radius: 50%;
+		transition: all 0.3s ease-in-out;
 
 		svg {
 			height: 20px !important;
+		}
+
+		&:hover {
+			background: var(--white, #FFF);
 		}
 	}
 
@@ -744,6 +748,19 @@ body.guesty-search-modal-open {
 				background: #fff;
 				opacity: 1;
 			}
+		}
+	}
+
+	@media (max-width: 768px) {
+		/* Hide arrows entirely on mobile */
+		.card-swiper .swiper-button-next,
+		.card-swiper .swiper-button-prev {
+			display: none !important;
+		}
+
+		/* Always show pagination dots on mobile */
+		.card-swiper .swiper-pagination {
+			opacity: 1;
 		}
 	}
 
