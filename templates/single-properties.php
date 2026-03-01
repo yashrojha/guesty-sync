@@ -103,10 +103,18 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 								if ($bathrooms = get_post_meta($post_id, 'guesty_bathrooms', true)) $specs_array[] = $bathrooms . ' BATHROOMS';
 								// Build specs as spans so each item wraps as a whole (no mid-item line breaks)
 								$combined_specs = '';
-								if ( ! empty( $specs_array ) ) {
-									$combined_specs .= '<span class="spec-item">' . esc_html( $specs_array[0] ); if(count( $specs_array ) > 1) { $combined_specs .= '&nbsp;•&nbsp;'; } $combined_specs .= '</span>';
-									for ( $i = 1; $i < count( $specs_array ); $i++ ) {
-										$combined_specs .= '<span class="spec-item">' . esc_html( $specs_array[ $i ] ); if($i < count( $specs_array ) - 1) { $combined_specs .= '&nbsp;•&nbsp;'; } $combined_specs .= '</span>';
+								if (! empty($specs_array)) {
+									$combined_specs .= '<span class="spec-item">' . esc_html($specs_array[0]);
+									if (count($specs_array) > 1) {
+										$combined_specs .= '&nbsp;•&nbsp;';
+									}
+									$combined_specs .= '</span>';
+									for ($i = 1; $i < count($specs_array); $i++) {
+										$combined_specs .= '<span class="spec-item">' . esc_html($specs_array[$i]);
+										if ($i < count($specs_array) - 1) {
+											$combined_specs .= '&nbsp;•&nbsp;';
+										}
+										$combined_specs .= '</span>';
 									}
 								}
 
@@ -200,7 +208,8 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 													</a>
 												</div>
 											<?php endif; ?>
-											<div class="quick-specs"><?php echo $combined_specs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when building spans ?></div>
+											<div class="quick-specs"><?php echo $combined_specs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when building spans 
+																		?></div>
 										</div>
 										<?php if ($icon_url_full) : ?>
 											<div class="property-icon-wrapper mobile">
@@ -309,7 +318,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 										$bedroom_slides[] = [
 											'image_id'        => $image_id,
 											'room_number'     => isset($room_data['roomNumber']) ? (int) $room_data['roomNumber'] : $index,
-											'bed_display_text'=> $bed_display_text,
+											'bed_display_text' => $bed_display_text,
 										];
 									}
 									?>
@@ -938,11 +947,37 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 
 	.property-back-button {
 		margin-bottom: 24px;
+
+		.back-link {
+			position: relative;
+			&:after {
+				content: '';
+				position: absolute;
+				bottom: 10px;
+				left: 0;
+				width: 40%;
+				height: 1px;
+				opacity: 0;
+				background: var(--Black, #000);
+				transition: all 0.5s ease;
+			}
+
+			&:hover {
+				&:after {
+					width: 100%;
+					opacity: 1;
+				}
+			}
+		}
+	}
+
+	.property-description {
+		color: var(--Black, #000);
 	}
 
 	.property-back-button a {
 		color: var(--Black, #000);
-		padding: 12px 0;
+		padding: 12px 0 14px;
 		font-family: var(--e-global-typography-accent-font-family), san-serif;
 		font-size: 14px;
 		font-style: normal;
@@ -1038,6 +1073,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 	.content-left {
 		width: 100%;
 		overflow: hidden;
+
 		@media (max-width: 767px) {
 			overflow: visible;
 		}
@@ -1046,9 +1082,11 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 	.content-right {
 		max-width: 440px;
 		width: 100%;
+
 		@media (max-width: 1024px) {
 			max-width: 380px;
 		}
+
 		@media (max-width: 800px) {
 			max-width: 300px;
 		}
@@ -1107,6 +1145,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			display: flex;
 			align-items: center;
 			gap: 8px;
+
 			@media (max-width: 767px) {
 				font-size: 12px;
 				letter-spacing: 0.96px;
@@ -1125,15 +1164,18 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			display: flex;
 			flex-wrap: wrap;
 			gap: 8px 0;
+
 			.spec-item {
 				white-space: nowrap;
 				letter-spacing: 0.96px;
 			}
+
 			@media (max-width: 1024px) {
 				font-size: 14px;
 				line-height: 120%;
 				margin-top: 10px;
 			}
+
 			@media (max-width: 767px) {
 				margin-top: 0;
 			}
@@ -1176,6 +1218,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		border: 0.5px solid var(--Black, #000);
 		background: var(--White, #FFF);
 		padding: 32px 24px;
+
 		@media (max-width: 1024px) {
 			padding: 24px 16px;
 		}
@@ -1209,6 +1252,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			flex-direction: column;
 			gap: 24px;
 			justify-content: space-between;
+
 			@media (max-width: 1024px) {
 				gap: 16px;
 			}
@@ -1221,6 +1265,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		font-size: 22px;
 		line-height: 120%;
 		letter-spacing: 1.32px;
+
 		@media (max-width: 1024px) {
 			font-size: 20px;
 			line-height: 24px;
@@ -1348,7 +1393,8 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 	/* Accordions */
 	.accordion-item {
 		border-bottom: 0.5px solid var(--Black, #000);
-		&:first-child{
+
+		&:first-child {
 			border-top: 0.5px solid var(--Black, #000);
 		}
 	}
@@ -1395,7 +1441,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		overflow: hidden;
 		transition: height 0.3s ease;
 		padding: 0 8px;
-		color: #666;
+		color: var(--Black, #000);
 	}
 
 	.booking-calendar {
@@ -1414,7 +1460,10 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 	}
 
 	.open-accordion.where-you-will-dream {
-		.accordion-panel{overflow: visible;}
+		.accordion-panel {
+			overflow: visible;
+		}
+
 		.accordion-header {
 			font-size: 28px !important;
 			line-height: 120% !important;
@@ -1427,6 +1476,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 				padding-top: 0;
 			}
 		}
+
 		@media (max-width: 767px) {
 			padding-bottom: 0;
 		}
@@ -1454,6 +1504,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 
 	.bedroomSwiper {
 		overflow: visible;
+
 		.swiper-button-next,
 		.swiper-button-prev {
 			display: flex;
@@ -1467,13 +1518,14 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			border: 0.5px solid var(--Black, #000);
 			background: var(--white-60, rgba(255, 255, 255, 0.60));
 
-			svg path{
+			svg path {
 				transition: fill 0.5s ease;
 			}
 
-			&:hover{
+			&:hover {
 				background: var(--Black, #000);
-				svg path{
+
+				svg path {
 					fill: var(--White, #FFF);
 				}
 			}
@@ -1495,6 +1547,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			line-height: 100%;
 			letter-spacing: 1.28px;
 			text-transform: uppercase;
+
 			@media (max-width: 767px) {
 				margin-bottom: 18px;
 			}
@@ -1537,11 +1590,13 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		.image-preview {
 			display: grid;
 			margin-bottom: 24px;
-			img{
+
+			img {
 				aspect-ratio: 3 / 4;
 				object-fit: cover;
 				height: 320px;
 			}
+
 			@media (max-width: 767px) {
 				margin-bottom: 14px;
 			}
@@ -1930,9 +1985,11 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 	@media (max-width: 767px) {
 		.single-property {
 			overflow-x: hidden;
+
 			.e-con {
 				--container-default-padding-right: 16px;
 				--container-default-padding-left: 16px;
+
 				.e-con-inner {
 					padding: 0;
 				}
@@ -1976,11 +2033,13 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			top: 16px;
 			left: 16px;
 			z-index: 1;
+
 			a.back-link {
 				padding: 10px;
 				background: #FFF;
 				line-height: 1;
 				display: grid;
+				position: relative;
 			}
 		}
 
@@ -2006,14 +2065,22 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			background: #FFF;
 			z-index: 2;
 			width: 100%;
+
 			.booking-title {
 				display: none;
 			}
-			.charge-text,.booking-price,.booking-icon,.booking-card-header {
+
+			.charge-text,
+			.booking-price,
+			.booking-icon,
+			.booking-card-header {
 				display: none;
 			}
-			&:has(.change-btn:not([style="display: none;"])){
-				.booking-title,.booking-card-header {
+
+			&:has(.change-btn:not([style="display: none;"])) {
+
+				.booking-title,
+				.booking-card-header {
 					display: block;
 				}
 			}

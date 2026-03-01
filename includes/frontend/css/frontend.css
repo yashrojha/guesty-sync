@@ -35,6 +35,10 @@
 		flex-direction: column;
 		gap: 4px;
 
+		&:hover {
+			background: var(--White, #FFF) !important;
+		}
+
 		.guesty-search-bar-mobile-label {
 			color: var(--Black, #000);
 			font-family: var(--e-global-typography-accent-font-family), san-serif;
@@ -57,6 +61,12 @@
 		}
 	}
 
+	.guesty-trending-items {
+		.region-name {
+			margin-bottom: 14px;
+		}
+	}
+
 	.guesty-search-modal-header,
 	.guesty-search-modal-extra {
 		display: none;
@@ -75,7 +85,7 @@
 	}
 
 	.guesty-search-modal-subtitle {
-		margin: 40px 0 20px 0;
+		margin: 40px 0 18px 0;
 		color: var(--Grey, #767676);
 		font-family: var(--e-global-typography-accent-font-family), san-serif;
 		font-size: 16px;
@@ -91,6 +101,7 @@
 		border: none;
 		cursor: pointer;
 		padding: 0;
+		line-height: 0;
 	}
 
 	.guesty-search-bar {
@@ -204,7 +215,7 @@
 		inset: 0;
 		background: var(--White, #FFF);
 		z-index: 9999;
-		padding: 32px 20px 24px;
+		padding: 28px 20px 24px;
 		overflow-y: auto;
 	}
 
@@ -216,7 +227,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 24px;
+		margin-bottom: 36px;
 	}
 
 	.guesty-search-bar-box.is-open .guesty-search-modal-extra {
@@ -600,7 +611,7 @@ body.guesty-search-modal-open {
 	}
 
 	@media (max-width: 340px) {
-		gap: 4px 20px;
+		gap: 5px 20px;
 	}
 
 	.region-name {
@@ -611,7 +622,7 @@ body.guesty-search-modal-open {
 		font-weight: 400;
 		line-height: 16px;
 		padding: 12px 0 0;
-		margin-bottom: 14px;
+		margin-bottom: 12px;
 		letter-spacing: 0.64px;
 		text-transform: uppercase;
 		position: relative;
@@ -644,7 +655,7 @@ body.guesty-search-modal-open {
 
 	@media (max-width: 768px) {
 		grid-template-columns: repeat(1, 1fr);
-		gap: 48px;
+		gap: 40px;
 	}
 
 	.card-media {
@@ -791,7 +802,7 @@ body.guesty-search-modal-open {
 }
 
 .card-content {
-	padding: 32px 0 24px;
+	padding: 24px 0;
 	border-bottom: 1px solid var(--Grey-Light, #C4C4C4);
 	
 	@media (min-width: 768px) {
@@ -806,7 +817,7 @@ body.guesty-search-modal-open {
 		letter-spacing: 1.68px;
 		font-style: normal;
 		text-transform: uppercase;
-		margin: 0 0 21px 0;
+		margin: 0 0 16px 0;
 
 		a {
 			text-decoration: none;
@@ -838,7 +849,8 @@ body.guesty-search-modal-open {
 	line-height: 100%;
 	color: var(--Grey, #767676);
 	letter-spacing: 1.28px;
-	margin-bottom: 24px;
+	margin-bottom: 18px;
+	text-transform: uppercase;
 
 	@media (max-width: 768px) {
 		font-size: 14px;
