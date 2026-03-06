@@ -452,46 +452,50 @@ get_header();
 
                     <!-- Dates & Guests -->
                     <div class="gbk-booking-meta">
-                        <div class="gbk-meta-row">
-                            <div class="gbk-meta-item">
-                                <span class="gbk-meta-icon">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <circle cx="12" cy="12" r="9.25" stroke="#767676" stroke-width="1.5"/>
-                                        <path d="M12 7v5l3 3" stroke="#767676" stroke-width="1.5" stroke-linecap="round"/>
-                                    </svg>
-                                </span>
-                                <div>
-                                    <div class="gbk-meta-label">Arrive</div>
+                        <table style="width:100%; border-collapse:collapse; border:1px solid #ddd;">
+                            <tr>
+                                <td style="border:1px solid #ddd; padding:8px;">
+                                    <div class="gbk-meta-label-wrap">
+                                        <span class="gbk-meta-icon">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <circle cx="12" cy="12" r="9.25" stroke="#767676" stroke-width="1.5"/>
+                                                <path d="M12 7v5l3 3" stroke="#767676" stroke-width="1.5" stroke-linecap="round"/>
+                                            </svg>
+                                        </span>
+                                        <div class="gbk-meta-label">Arrive</div>
+                                    </div>
                                     <div class="gbk-meta-value"><?php echo esc_html($check_in); ?></div>
-                                </div>
-                            </div>
-                            <div class="gbk-meta-item">
-                                <span class="gbk-meta-icon">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <circle cx="12" cy="12" r="9.25" stroke="#767676" stroke-width="1.5"/>
-                                        <path d="M12 7v5l3 3" stroke="#767676" stroke-width="1.5" stroke-linecap="round"/>
-                                    </svg>
-                                </span>
-                                <div>
-                                    <div class="gbk-meta-label">Depart</div>
+                                </td>
+                                <td style="border:1px solid #ddd; padding:8px;">
+                                    <div class="gbk-meta-label-wrap">
+                                        <span class="gbk-meta-icon">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <circle cx="12" cy="12" r="9.25" stroke="#767676" stroke-width="1.5"/>
+                                                <path d="M12 7v5l3 3" stroke="#767676" stroke-width="1.5" stroke-linecap="round"/>
+                                            </svg>
+                                        </span>
+                                        <div class="gbk-meta-label">Depart</div>
+                                    </div>
                                     <div class="gbk-meta-value"><?php echo esc_html($check_out); ?></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="gbk-meta-item">
-                            <span class="gbk-meta-icon">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="12" cy="8" r="3.25" stroke="#767676" stroke-width="1.5"/>
-                                    <path d="M4 20c0-3.87 3.58-7 8-7s8 3.13 8 7" stroke="#767676" stroke-width="1.5" stroke-linecap="round"/>
-                                </svg>
-                            </span>
-                            <div>
-                                <div class="gbk-meta-label">Guests</div>
-                                <div class="gbk-meta-value">
-                                    <?php echo esc_html($guest_count); ?> <?php echo $guest_count === 1 ? 'Guest' : 'Guests'; ?>
-                                </div>
-                            </div>
-                        </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="border:1px solid #ddd; padding:8px;">
+                                    <div class="gbk-meta-label-wrap">
+                                        <span class="gbk-meta-icon">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <circle cx="12" cy="8" r="3.25" stroke="#767676" stroke-width="1.5"/>
+                                                <path d="M4 20c0-3.87 3.58-7 8-7s8 3.13 8 7" stroke="#767676" stroke-width="1.5" stroke-linecap="round"/>
+                                            </svg>
+                                        </span>
+                                        <div class="gbk-meta-label">Guests</div>
+                                    </div>
+                                    <div class="gbk-meta-value">
+                                        <?php echo esc_html($guest_count); ?> <?php echo $guest_count === 1 ? 'Guest' : 'Guests'; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
                     </div>
 
                     <!-- Coupon -->
