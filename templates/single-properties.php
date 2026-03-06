@@ -264,7 +264,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 									?>
 											<div class="accordion-item">
 												<button class="accordion-header">
-													<?php echo esc_html($label); ?>
+													<span class="accordion-header-text"><?php echo esc_html($label); ?></span>
 													<span>
 														<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
 															<path d="M16.59 8.59L12 13.17L7.41 8.59L6 10L12 16L18 10L16.59 8.59Z" fill="black" />
@@ -885,9 +885,47 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 				btn.onclick = () => window.location.href = bookingUrl;
 
 			} else {
-				// Get API error message
-				const errorMessage =
-					result?.data?.error?.message || "Sorry, these dates are not available.";
+				// Get API error message (from Guesty) and make it guest-friendly.
+				const rawMessage = result?.data?.error?.message || "";
+
+				function humanizeGuestyError(message) {
+					const msg = (message || "").toString().trim();
+					if (!msg) {
+						return "Sorry, these dates are not available.";
+					}
+
+					const lower = msg.toLowerCase();
+
+					// Minimum stay violations (e.g. "terms not applicable: minNights")
+					if (lower.includes("minnights") || lower.includes("minimum nights")) {
+						if (guestyMinNights > 0) {
+							return `This property requires a minimum stay of ${guestyMinNights} night${guestyMinNights > 1 ? "s" : ""} for the selected dates. Please extend your stay or choose different dates.`;
+						}
+						return "The selected stay is shorter than the minimum stay allowed for this property. Please select a longer stay or different dates.";
+					}
+
+					// Maximum stay violations
+					if (lower.includes("maxnights") || lower.includes("maximum nights")) {
+						if (guestyMaxNights > 0) {
+							return `This property allows a maximum stay of ${guestyMaxNights} night${guestyMaxNights > 1 ? "s" : ""} for the selected dates. Please shorten your stay or choose different dates.`;
+						}
+						return "The selected stay is longer than the maximum stay allowed for this property. Please shorten your stay or choose different dates.";
+					}
+
+					// Generic "terms not applicable" messages
+					if (lower.includes("terms not applicable") || lower.includes("terms are not applicable")) {
+						return "The selected dates do not meet the booking rules for this property (for example, minimum/maximum stay or arrival/departure restrictions). Please try different dates or contact us for assistance.";
+					}
+
+					// Fallback: use the original message if it looks reasonable,
+					// otherwise fall back to a generic friendly message.
+					if (msg.length < 200) {
+						return msg;
+					}
+					return "Sorry, these dates are not available.";
+				}
+
+				const errorMessage = humanizeGuestyError(rawMessage);
 
 				// Show notification
 				notifyText.textContent = errorMessage;
@@ -1462,6 +1500,10 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		span {
 			display: inline-flex;
 			transition: transform 0.25s ease;
+		}
+
+		.accordion-header-text {
+			margin-bottom: -4px;
 		}
 
 		@media (max-width: 767px) {

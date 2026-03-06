@@ -1,5 +1,8 @@
 .guesty-instant-booking-page {
     padding: 48px 0 100px;
+    @media (max-width: 768px) {
+        padding: 48px 0 56px;
+    }
     .booking-page-inner {
         max-width: 1180px;
         margin: 0 auto;
@@ -8,10 +11,14 @@
 
     /* ── Availability / Date Error Screen ─────────────────────────────── */
     .gbk-error-screen {
-        max-width: 560px;
+        max-width: 700px;
         margin: 0 auto;
-        padding: 56px 32px 64px;
+        padding: 56px 32px 0;
         text-align: center;
+
+        @media (max-width: 768px) {
+            padding: 40px 0 0;
+        }
     }
 
     .gbk-error-icon {
@@ -22,22 +29,22 @@
     .gbk-error-screen h2 {
         font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
         font-size: 28px;
+        line-height: 1.4;
         font-weight: 700;
         color: #1a1a1a;
         margin: 0 0 12px;
     }
 
     .gbk-error-screen p {
-        font-size: 16px;
-        color: #444;
-        line-height: 1.6;
-        margin: 0 0 20px;
+        margin: 0 0 24px;
     }
 
     .gbk-error-meta {
-        font-size: 13px;
-        color: #767676;
-        margin-bottom: 36px;
+        color: rgba(0, 0, 0, 0.75);
+        margin-bottom: 32px;
+        @media (max-width: 768px) {
+            font-size: 18px;
+        }
     }
 
     .gbk-error-actions {
@@ -86,7 +93,7 @@
 
     @media (max-width: 767px) {
         .booking-page-title {
-            font-size: 26px;
+            font-size: 32px;
             margin-bottom: 20px;
         }
     }
@@ -103,6 +110,7 @@
         font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
         font-size: 14px;
         font-weight: 400;
+        line-height: 1.3;
         letter-spacing: 0.3px;
     }
 
@@ -154,6 +162,9 @@
         padding: 20px 24px;
         &:has(.step-number.active) {
             padding-bottom: 32px;
+            @media (max-width: 768px) {
+                padding-bottom: 20px;
+            }
         }
     }
 
@@ -173,20 +184,21 @@
         background: var(--Grey-Light, #C4C4C4);
         color: #fff;
         font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 700;
         flex-shrink: 0;
         transition: background 0.25s ease;
         line-height: 1;
-    }
-
-    .step-number.active {
-        background: #000;
-    }
-
-    .step-number.done {
-        background: #059669;
-        font-size: 16px;
+        &.active {
+            background: #000;
+        }
+        &.done {
+            background: #059669;
+            font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        }
+        span {
+            margin-bottom: -3px;
+        }
     }
 
     .step-title {
@@ -206,7 +218,7 @@
     .step-edit-btn {
         background: none !important;
         border: none;
-        color: var(--Grey, #767676) !important;
+        color: var(--Grey, #767676);
         font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
         font-size: 13px;
         font-weight: 500;
@@ -215,18 +227,14 @@
         text-decoration: underline;
         padding: 4px 0;
         text-transform: uppercase;
-    }
-
-    .step-edit-btn:hover {
-        color: var(--Black, #000);
+        &:hover {
+            color: var(--Black, #000);
+        }
     }
 
     .step-body {
         padding: 0 24px 24px;
-    }
-
-    @media (max-width: 767px) {
-        .step-body {
+        @media (max-width: 767px) {
             padding: 0 16px 20px;
         }
     }
@@ -235,7 +243,7 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 20px;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
         @media (max-width: 600px) {
             grid-template-columns: 1fr;
         }
@@ -245,7 +253,6 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
-
         label {
             font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
             font-size: 20px;
@@ -282,10 +289,10 @@
         display: flex;
         align-items: flex-start;
         gap: 10px;
-        margin-bottom: 20px;
+        margin-bottom: 32px;
         font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
         font-size: 14px;
-        color: rgba(0, 0, 0, 0.60);
+        color: rgba(0, 0, 0, 0.75);
         line-height: 1.5;
         input[type="checkbox"] {
             margin: 0;
@@ -295,7 +302,11 @@
             cursor: pointer;
             accent-color: var(--Black, #000);
         }
-    
+        @media (max-width: 768px) {
+            label {
+                line-height: 1.3;
+            }
+        }
         a {
             color: var(--Black, #000);
             text-decoration: none;
@@ -353,8 +364,8 @@
     }
 
     .gbk-btn-secondary:hover {
-        background: #333;
-        color: #fff;
+        background: transparent;
+        color: #000;
     }
 
     .gbk-form-error {
@@ -372,23 +383,20 @@
         margin-bottom: 24px;
         h3 {
             font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
-            font-size: 13px;
-            font-weight: 700;
+            font-size: 20px;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
+            letter-spacing: 1.2px;
             margin: 0 0 12px;
             color: var(--Black, #000);
         }
     
         p {
-            font-size: 14px;
-            color: var(--Grey, #767676);
+            color: rgba(0, 0, 0, 0.75);
             line-height: 1.7;
             font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
             margin: 0;
         }
     }
-
 
     .house-rules {
         list-style: none;
@@ -396,15 +404,14 @@
         margin: 0;
         display: flex;
         flex-direction: column;
-        gap: 8px;
         li {
             display: flex;
             gap: 6px;
-            font-size: 14px;
+            font-size: 16px;
             font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
-            color: var(--Grey, #767676);
+            color: rgba(0, 0, 0, 0.60);
             .rule-label {
-                color: var(--Grey, #767676);
+                color: rgba(0, 0, 0, 0.75);
             }
             strong {
                 color: var(--Black, #000);
@@ -531,24 +538,28 @@
         background: #fff;
         position: sticky;
         top: 30px;
+        @media (max-width: 767px) {
+            padding: 20px 16px;
+        }
     }
 
     .gbk-property-name {
         font-family: var(--e-global-typography-secondary-font-family, "Baskerville Display PT"), serif;
-        font-size: 22px;
+        font-size: 32px;
         font-weight: 400;
+        text-transform: capitalize;
         margin: 0 0 4px;
         color: var(--Black, #000);
-        line-height: 1.3;
+        line-height: 1;
     }
 
     .gbk-property-type {
         font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
-        font-size: 12px;
+        font-size: 16px;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
+        letter-spacing: 0.96px;
         color: var(--Grey, #767676);
-        margin: 0 0 16px;
+        margin: 0 0 18px;
     }
 
     .gbk-property-image {
@@ -573,7 +584,7 @@
             .gbk-meta-label-wrap {
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: 5px;
                 margin-bottom: 5px;
             }
         }
@@ -592,21 +603,29 @@
     }
 
     .gbk-meta-icon {
-        color: var(--Grey, #767676);
-        font-size: 18px;
+        color: var(--Black, #000);
+        font-size: 12px;
         flex-shrink: 0;
         margin-top: 1px;
         line-height: 1;
+        svg{
+            height: 1em;
+            width: 1em;
+            stroke: currentColor;
+            path {
+                stroke-width: 2px;
+            }
+        }
     }
 
     .gbk-meta-label {
         font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
-        font-size: 14px;
+        font-size: 10px;
         line-height: 1;
         font-weight: 500;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--Grey, #767676);
+        letter-spacing: 0.2px;
+        color: var(--Black, #000);
     }
 
     .gbk-meta-value {
@@ -623,8 +642,7 @@
         padding-top: 18px;
         h4 {
             font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 0.6px;
             margin: 0 0 10px;
@@ -639,8 +657,8 @@
             border: 1px solid var(--Grey-Light, #C4C4C4);
             border-right: 0;
             border-radius: 0;
-            padding: 12px 14px;
-            font-size: 14px;
+            padding: 12px;
+            font-size: 16px;
             font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
             outline: none;
             color: var(--Black, #000);
@@ -701,26 +719,26 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1;
         color: var(--Grey, #767676);
         letter-spacing: 0.3px;
     }
 
     .gbk-view-details-link {
-        color: var(--Black, #000) !important;
+        color: var(--Black, #000);
         text-decoration: underline;
         text-underline-offset: 2px;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
         cursor: pointer;
-        font-size: 11px;
+        font-size: 13px;
         background: none !important;
         border: none;
         padding: 0;
-        font-family: inherit;
         font-weight: 600;
         &:hover {
             color: var(--Black, #000);
+            background: none;
         }
     }
 
