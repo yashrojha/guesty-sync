@@ -1,0 +1,795 @@
+.guesty-instant-booking-page {
+    padding: 48px 0 100px;
+    .booking-page-inner {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 32px;
+    }
+
+    /* ── Availability / Date Error Screen ─────────────────────────────── */
+    .gbk-error-screen {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 56px 32px 64px;
+        text-align: center;
+    }
+
+    .gbk-error-icon {
+        margin-bottom: 20px;
+        line-height: 1;
+    }
+
+    .gbk-error-screen h2 {
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin: 0 0 12px;
+    }
+
+    .gbk-error-screen p {
+        font-size: 16px;
+        color: #444;
+        line-height: 1.6;
+        margin: 0 0 20px;
+    }
+
+    .gbk-error-meta {
+        font-size: 13px;
+        color: #767676;
+        margin-bottom: 36px;
+    }
+
+    .gbk-error-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .gbk-btn-outline {
+        background: transparent;
+        border: 1.5px solid #1a1a1a;
+        color: #1a1a1a;
+    }
+
+    .gbk-btn-outline:hover {
+        background: #f5f5f5;
+    }
+
+    @media (max-width: 480px) {
+        .gbk-error-actions {
+            flex-direction: column;
+        }
+        .gbk-error-actions .gbk-btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .guesty-instant-booking-page {
+            padding: 24px 0 60px;
+        }
+        .booking-page-inner {
+            padding: 0 16px;
+        }
+    }
+
+    .booking-page-title {
+        font-size: 56px;
+        text-align: center;
+        margin: 0 0 28px;
+        color: var(--Black, #000);
+        line-height: 1.15;
+        letter-spacing: -0.5px;
+    }
+
+    @media (max-width: 767px) {
+        .booking-page-title {
+            font-size: 26px;
+            margin-bottom: 20px;
+        }
+    }
+
+    .booking-alert-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #e8f4fb;
+        border: 1px solid #bee3f8;
+        color: #1a6fad;
+        padding: 14px 20px;
+        margin-bottom: 44px;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 14px;
+        font-weight: 400;
+        letter-spacing: 0.3px;
+    }
+
+    .booking-alert-banner .alert-icon {
+        flex-shrink: 0;
+        font-size: 16px;
+        line-height: 1;
+    }
+
+    .booking-content-layout {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 48px;
+        align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+        .booking-content-layout {
+            grid-template-columns: 1fr 320px;
+            gap: 32px;
+        }
+    }
+
+    @media (max-width: 820px) {
+        .booking-content-layout {
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+        .booking-summary-column {
+            order: -1;
+            margin-bottom: 32px;
+        }
+    }
+
+    .booking-step {
+        border: 1px solid var(--Grey-Light, #C4C4C4);
+        margin-bottom: 12px;
+        transition: border-color 0.2s ease;
+    }
+
+    .booking-step.completed .step-header {
+        cursor: default;
+    }
+
+    .step-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 20px 24px;
+        &:has(.step-number.active) {
+            padding-bottom: 32px;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .step-header {
+            padding: 16px;
+        }
+    }
+
+    .step-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--Grey-Light, #C4C4C4);
+        color: #fff;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        flex-shrink: 0;
+        transition: background 0.25s ease;
+        line-height: 1;
+    }
+
+    .step-number.active {
+        background: #000;
+    }
+
+    .step-number.done {
+        background: #059669;
+        font-size: 16px;
+    }
+
+    .step-title {
+        font-size: 18px;
+        letter-spacing: 0.8px;
+        margin: 0;
+        color: var(--Black, #000);
+        transition: color 0.25s ease;
+        line-height: 1;
+        font-style: normal;
+        flex: 1;
+        .active {
+            color: var(--Black, #000);
+        }
+    }
+
+    .step-edit-btn {
+        background: none !important;
+        border: none;
+        color: var(--Grey, #767676) !important;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        text-decoration: underline;
+        padding: 4px 0;
+        text-transform: uppercase;
+    }
+
+    .step-edit-btn:hover {
+        color: var(--Black, #000);
+    }
+
+    .step-body {
+        padding: 0 24px 24px;
+    }
+
+    @media (max-width: 767px) {
+        .step-body {
+            padding: 0 16px 20px;
+        }
+    }
+
+    .gbk-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+        .gbk-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .gbk-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .gbk-field label {
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--Black, #000);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .gbk-field input[type="text"],
+    .gbk-field input[type="email"],
+    .gbk-field input[type="tel"] {
+        border: 1px solid var(--Grey-Light, #C4C4C4);
+        padding: 13px 15px;
+        font-size: 15px;
+        color: var(--Black, #000);
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        outline: none;
+        transition: border-color 0.2s ease;
+        background: #fff;
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 0;
+        -webkit-appearance: none;
+    }
+
+    .gbk-field input:focus {
+        border-color: var(--Black, #000);
+    }
+
+    .gbk-field input::placeholder {
+        color: var(--Grey, #767676);
+        font-size: 14px;
+    }
+
+    .gbk-terms {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 20px;
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        font-size: 13px;
+        color: var(--Grey, #767676);
+        line-height: 1.5;
+    }
+
+    .gbk-terms input[type="checkbox"] {
+        margin: 0;
+        flex-shrink: 0;
+        width: 15px;
+        height: 15px;
+        cursor: pointer;
+        accent-color: var(--Black, #000);
+    }
+
+    .gbk-terms a {
+        color: var(--Black, #000) !important;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .gbk-terms a:hover {
+        color: var(--Black, #000);
+    }
+
+    .gbk-btn {
+        display: block;
+        width: 100%;
+        padding: 17px 24px;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        border: 1px solid var(--Black, #000);
+        cursor: pointer;
+        transition: background 0.25s ease, color 0.25s ease;
+        text-align: center;
+        box-sizing: border-box;
+        line-height: 1;
+    }
+
+    .gbk-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .gbk-btn-primary {
+        background: var(--Black, #000);
+        color: var(--White, #FFF);
+    }
+
+    .gbk-btn-primary:hover:not(:disabled) {
+        background: transparent;
+        color: var(--Black, #000);
+    }
+
+    .gbk-btn-pay {
+        background: var(--Black, #000);
+        color: var(--White, #FFF);
+        margin-top: 16px;
+    }
+
+    .gbk-btn-pay:hover:not(:disabled) {
+        background: transparent;
+        color: var(--Black, #000);
+    }
+
+    .gbk-btn-secondary {
+        background: var(--Black, #000);
+        color: #fff;
+    }
+
+    .gbk-btn-secondary:hover {
+        background: #333;
+        color: #fff;
+    }
+
+    .gbk-form-error {
+        color: #b91c1c;
+        font-size: 13px;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        margin-bottom: 14px;
+        padding: 10px 14px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        line-height: 1.5;
+    }
+
+    .policy-section {
+        margin-bottom: 24px;
+    }
+
+    .policy-section h3 {
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin: 0 0 12px;
+        color: var(--Black, #000);
+    }
+
+    .policy-section p {
+        font-size: 14px;
+        color: var(--Grey, #767676);
+        line-height: 1.7;
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        margin: 0;
+    }
+
+    .house-rules {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .house-rules li {
+        display: flex;
+        gap: 6px;
+        font-size: 14px;
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        color: var(--Grey, #767676);
+    }
+
+    .house-rules li .rule-label {
+        color: var(--Grey, #767676);
+    }
+
+    .house-rules li strong {
+        color: var(--Black, #000);
+        font-weight: 600;
+    }
+
+    .gbk-stripe-info {
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        font-size: 13px;
+        color: var(--Grey, #767676);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .gbk-stripe-info svg {
+        flex-shrink: 0;
+    }
+
+    #gbk-card-element {
+        border: 1px solid var(--Grey-Light, #C4C4C4);
+        padding: 15px 16px;
+        background: #fff;
+        min-height: 52px;
+        transition: border-color 0.2s ease;
+    }
+
+    #gbk-card-element.StripeElement--focus {
+        border-color: var(--Black, #000);
+    }
+
+    .gbk-spinner {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .gbk-spinner > div {
+        width: 8px;
+        height: 8px;
+        background: currentColor;
+        border-radius: 50%;
+        animation: gbk-bounce 1.4s ease-in-out infinite both;
+    }
+
+    .gbk-spinner > div:nth-child(1) { animation-delay: -0.32s; }
+    .gbk-spinner > div:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes gbk-bounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40%           { transform: scale(1); }
+    }
+
+    #gbk-booking-success {
+        border: 1px solid #a7f3d0;
+        background: #ecfdf5;
+        padding: 36px 28px;
+        text-align: center;
+    }
+
+    .gbk-success-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+
+    #gbk-booking-success h2 {
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0 0 12px;
+        color: #065f46;
+    }
+
+    #gbk-booking-success p {
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        color: #047857;
+        font-size: 16px;
+        margin: 0 0 24px;
+    }
+
+    .gbk-confirmation-details {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 20px;
+        margin-bottom: 28px;
+        text-align: left;
+        border: 1px solid #a7f3d0;
+    }
+
+    .gbk-confirmation-details p {
+        margin: 0 0 8px;
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        font-size: 15px;
+        color: #065f46 !important;
+    }
+
+    .gbk-confirmation-details p:last-child {
+        margin-bottom: 0;
+    }
+
+    .gbk-browse-btn {
+        display: inline-block;
+        padding: 14px 32px;
+        background: var(--Black, #000);
+        color: var(--White, #FFF);
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: background 0.2s ease;
+    }
+
+    .gbk-browse-btn:hover {
+        background: transparent;
+        color: var(--Black, #000);
+    }
+
+    .gbk-summary-card {
+        border: 1px solid var(--Grey-Light, #C4C4C4);
+        padding: 24px;
+        background: #fff;
+        position: sticky;
+        top: 30px;
+    }
+
+    .gbk-property-name {
+        font-family: var(--e-global-typography-secondary-font-family, "Baskerville Display PT"), serif;
+        font-size: 22px;
+        font-weight: 400;
+        margin: 0 0 4px;
+        color: var(--Black, #000);
+        line-height: 1.3;
+    }
+
+    .gbk-property-type {
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--Grey, #767676);
+        margin: 0 0 16px;
+    }
+
+    .gbk-property-image {
+        width: 100%;
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+
+    .gbk-property-image img {
+        width: 100%;
+        height: 190px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .gbk-booking-meta {
+        border: 1px solid var(--Grey-Light, #C4C4C4);
+        background: #f8f8f8;
+        padding: 16px;
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .gbk-meta-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .gbk-meta-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .gbk-meta-icon {
+        color: var(--Grey, #767676);
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 1px;
+        line-height: 1;
+    }
+
+    .gbk-meta-label {
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 14px;
+        line-height: 1;
+        margin-bottom: 5px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--Grey, #767676);
+    }
+
+    .gbk-meta-value {
+        font-size: 16px;
+        color: var(--Black, #000);
+        font-weight: 600;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        line-height: 1.3;
+    }
+
+    .gbk-coupon-section {
+        margin-bottom: 20px;
+        border-top: 1px solid var(--Grey-Light, #C4C4C4);
+        padding-top: 18px;
+    }
+
+    .gbk-coupon-section h4 {
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin: 0 0 10px;
+        color: var(--Black, #000);
+    }
+
+    .gbk-coupon-form {
+        display: flex;
+        input {
+            flex: 1;
+            border: 1px solid var(--Grey-Light, #C4C4C4);
+            border-right: 0;
+            border-radius: 0;
+            padding: 12px 14px;
+            font-size: 14px;
+            font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+            outline: none;
+            color: var(--Black, #000);
+            background: #fff;
+            box-sizing: border-box;
+            &:focus {
+                border-color: var(--Black, #000);
+            }
+            &::placeholder {
+                color: var(--Grey, #767676);
+            }
+        }
+    }
+
+    .gbk-btn-coupon {
+        width: auto;
+        padding: 12px 20px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .gbk-coupon-message {
+        font-size: 12px;
+        margin-top: 8px;
+        padding: 8px 10px;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+    }
+
+    .gbk-coupon-message.success {
+        color: #065f46;
+        background: #d1fae5;
+        border: 1px solid #a7f3d0;
+    }
+
+    .gbk-coupon-message.error {
+        color: #b91c1c;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .gbk-price-section {
+        border-top: 1px solid var(--Grey-Light, #C4C4C4);
+        padding-top: 16px;
+    }
+
+    .gbk-price-total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        color: var(--Black, #000);
+        font-size: 17px;
+        margin-bottom: 5px;
+    }
+
+    .gbk-price-total-row strong {
+        font-size: 20px;
+        font-weight: 400;
+    }
+
+    .gbk-price-subtext {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 12px;
+        line-height: 1;
+        color: var(--Grey, #767676);
+        letter-spacing: 0.3px;
+    }
+
+    .gbk-view-details-link {
+        color: var(--Black, #000) !important;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+        font-size: 11px;
+        background: none !important;
+        border: none;
+        padding: 0;
+        font-family: inherit;
+        font-weight: 600;
+    }
+
+    .gbk-view-details-link:hover {
+        color: var(--Black, #000);
+    }
+
+    .gbk-price-details-box {
+        margin-top: 14px;
+        border-top: 1px solid var(--Grey-Light, #C4C4C4);
+        padding-top: 14px;
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .gbk-fee-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        color: var(--Grey, #767676);
+    }
+
+    .gbk-fee-row-total {
+        display: flex;
+        justify-content: space-between;
+        font-size: 15px;
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        color: var(--Black, #000);
+        border-top: 1px solid var(--Grey-Light, #C4C4C4);
+        padding-top: 10px;
+        margin-top: 4px;
+        font-weight: 600;
+    }
+
+    .gbk-no-price {
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        font-size: 14px;
+        color: var(--Grey, #767676);
+        font-style: italic;
+        padding: 12px 0;
+    }
+
+    .gbk-secure-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 14px;
+        font-family: var(--e-global-typography-accent-font-family, "League Spartan"), sans-serif;
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--Grey, #767676);
+    }
+}

@@ -694,6 +694,38 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			document.querySelector('.clear-dates').style.display = 'grid';
 			booking_button.disabled = false;
 			booking_button.innerText = 'RESERVE';
+
+			// Auto-validate availability when dates arrive via URL params
+			// (e.g. when navigating back from the booking page or sharing a link).
+			const listingId = "<?php echo get_post_meta(get_the_ID(), 'guesty_id', true); ?>";
+			if (listingId) {
+				(async function() {
+					const notifyBox  = document.querySelector('.notify-box');
+					const notifyText = notifyBox ? notifyBox.querySelector('span') : null;
+
+					const fd = new FormData();
+					fd.append('action',     'guesty_check_availability');
+					fd.append('listing_id', listingId);
+					fd.append('check_in',   checkIn);
+					fd.append('check_out',  checkOut);
+
+					try {
+						const res    = await fetch("<?php echo admin_url('admin-ajax.php'); ?>", { method: 'POST', body: fd });
+						const result = await res.json();
+
+						if (!result.success) {
+							if (notifyBox && notifyText) {
+								notifyText.textContent  = result.data || 'The selected dates are not available for this property.';
+								notifyBox.style.display = 'block';
+							}
+							booking_button.disabled    = true;
+							booking_button.innerText   = 'SELECT DATES';
+						}
+					} catch (e) {
+						// Silently ignore network errors on auto-check; user can still click Reserve.
+					}
+				})();
+			}
 		}
 	});
 
@@ -729,11 +761,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			return;
 		}
 
-		const bookingUrl =
-			`https://khove.guestybookings.com/en/properties/${listingId}` +
-			`?minOccupancy=${guests}` +
-			`&checkIn=${checkIn}` +
-			`&checkOut=${checkOut}`;
+		const bookingUrl = `<?php echo esc_js(home_url('/instant-booking/')); ?>?check_in=${checkIn}&check_out=${checkOut}&guest=${guests}&listing_id=${listingId}`;
 
 		const btn = this;
 		if (btn.innerText === 'BOOK NOW') {
@@ -741,20 +769,36 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			return;
 		}
 		btn.innerHTML = `<div class="spinner"><div class="bounce1"></div><div class="bounce2"></div><div class="bounce3"></div></div>`;
-		//if (localStorage.getItem('sharedState')) {
-		//localStorage.removeItem('sharedState');
-		//}
 
 		try {
-			// 2. Prepare the AJAX data
+			// 2. Calendar availability check FIRST — before the quote API.
+			//    The quote endpoint is a pricing tool and can occasionally return
+			//    "valid" for dates that are blocked in the Guesty calendar.
+			const availFd = new FormData();
+			availFd.append('action',     'guesty_check_availability');
+			availFd.append('listing_id', listingId);
+			availFd.append('check_in',   checkIn);
+			availFd.append('check_out',  checkOut);
+
+			const availRes    = await fetch("<?php echo admin_url('admin-ajax.php'); ?>", { method: 'POST', body: availFd });
+			const availResult = await availRes.json();
+
+			if (!availResult.success) {
+				notifyText.textContent  = availResult.data || 'Sorry, these dates are not available.';
+				notifyBox.style.display = 'block';
+				bookingCostBox.style.display = 'none';
+				btn.innerText = 'RESERVE';
+				return;
+			}
+
+			// 3. Dates confirmed available — now fetch the quote for pricing.
 			const formData = new FormData();
-			formData.append('action', 'get_guesty_quote'); // This must match your PHP function
+			formData.append('action', 'get_guesty_quote');
 			formData.append('listing_id', listingId);
 			formData.append('checkIn', checkIn);
 			formData.append('checkOut', checkOut);
 			formData.append('guests', guests);
 
-			// 3. Send the request to admin-ajax.php
 			const response = await fetch("<?php echo admin_url('admin-ajax.php'); ?>", {
 				method: 'POST',
 				body: formData

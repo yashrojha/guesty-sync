@@ -229,3 +229,71 @@ function guesty_log($type, $message) {
  */
 register_activation_hook(__FILE__, 'guesty_schedule_cron');
 register_deactivation_hook(__FILE__, 'guesty_clear_cron');
+
+/* =========================
+   INSTANT BOOKING PAGE
+========================= */
+
+/**
+ * Register rewrite rule for /instant-booking/
+ */
+add_action('init', 'guesty_register_booking_rewrite');
+function guesty_register_booking_rewrite() {
+    add_rewrite_rule('^instant-booking/?$', 'index.php?guesty_booking_page=1', 'top');
+}
+
+add_filter('query_vars', 'guesty_booking_query_vars');
+function guesty_booking_query_vars($vars) {
+    $vars[] = 'guesty_booking_page';
+    return $vars;
+}
+
+/**
+ * Load instant-booking.php template for the /instant-booking/ URL
+ */
+add_filter('template_include', 'guesty_load_instant_booking_template');
+function guesty_load_instant_booking_template($template) {
+    if (get_query_var('guesty_booking_page')) {
+        $file = GUESTY_SYNC_PATH . 'templates/instant-booking.php';
+        if (file_exists($file)) {
+            return $file;
+        }
+    }
+    return $template;
+}
+
+/**
+ * Enqueue assets only on the instant booking page
+ */
+add_action('wp_enqueue_scripts', 'guesty_enqueue_booking_page_assets', 100);
+function guesty_enqueue_booking_page_assets() {
+    if (!get_query_var('guesty_booking_page')) return;
+
+    wp_enqueue_style(
+        'guesty-instant-booking-css',
+        GUESTY_SYNC_URL . 'includes/frontend/css/instant-booking.css',
+        [],
+        filemtime(GUESTY_SYNC_PATH . 'includes/frontend/css/instant-booking.css')
+    );
+}
+
+/**
+ * Set the document title for the booking page
+ */
+add_filter('pre_get_document_title', 'guesty_booking_page_title');
+function guesty_booking_page_title($title) {
+    if (get_query_var('guesty_booking_page')) {
+        return 'Instant Booking &mdash; ' . get_bloginfo('name');
+    }
+    return $title;
+}
+
+/**
+ * Flush rewrite rules on plugin activation so /instant-booking/ works immediately
+ */
+register_activation_hook(__FILE__, 'guesty_flush_booking_rewrite');
+function guesty_flush_booking_rewrite() {
+    guesty_register_booking_rewrite();
+    flush_rewrite_rules();
+}
+register_deactivation_hook(__FILE__, 'flush_rewrite_rules');

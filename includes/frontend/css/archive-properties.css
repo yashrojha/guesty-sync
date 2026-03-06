@@ -3,7 +3,7 @@
  * Shared grid/card styles remain in frontend.css for use by [guesty_featured_properties] etc.
  */
 
- .guesty-archive-wrapper {
+.guesty-archive-wrapper {
 	max-width: 100%;
 	margin: 0 auto;
 	padding: 62px 0 0;
@@ -144,7 +144,7 @@
 	padding-top: 64px;
 	border-top: 0.5px solid #000;
 	@media (max-width: 768px) {
-		margin: 64px 0 30px;
+		margin: 64px 0 54px;
 	}
 	.guesty-archive-map-title {
 		margin: 0 0 62px;

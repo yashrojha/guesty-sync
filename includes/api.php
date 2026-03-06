@@ -27,13 +27,13 @@ function guesty_get_token() {
         [
             'headers' => [
                 'Content-Type'  => 'application/x-www-form-urlencoded',
-        		'Accept' => 'application/json'
+                'Accept' => 'application/json'
             ],
             'body' => http_build_query([
-				"grant_type" => "client_credentials",
-        		"scope" => "open-api",
-        		"client_id" => $client_id,
-        		"client_secret" => $client_secret
+                "grant_type" => "client_credentials",
+                "scope" => "open-api",
+                "client_id" => $client_id,
+                "client_secret" => $client_secret
             ]),
             'timeout' => 20,
         ]
@@ -87,13 +87,13 @@ function guesty_be_get_token() {
         [
             'headers' => [
                 'Content-Type'  => 'application/x-www-form-urlencoded',
-        		'Accept' => 'application/json'
+                'Accept' => 'application/json'
             ],
             'body' => http_build_query([
-				"grant_type" => "client_credentials",
-        		"scope" => "booking_engine:api",
-        		"client_id" => $client_id,
-        		"client_secret" => $client_secret
+                "grant_type" => "client_credentials",
+                "scope" => "booking_engine:api",
+                "client_id" => $client_id,
+                "client_secret" => $client_secret
             ]),
             'timeout' => 20,
 			'sslverify' => false
@@ -249,4 +249,154 @@ function fetch_guesty_review_average($listing_ids) {
     }
 
     return json_decode($body, true);
+}
+
+/**
+ * Check if a listing is available for a date range using the Calendar API.
+ *
+ * Uses GET /v1/availability-pricing/api/calendar/listings/{id} which returns
+ * per-day status and CTA/CTD flags. This is more authoritative than the quote
+ * API — blocked/reserved nights will have status != "available" here even when
+ * the quote endpoint occasionally accepts them.
+ *
+ * @param  string $listing_id  Guesty listing ID.
+ * @param  string $check_in    Check-in date YYYY-MM-DD.
+ * @param  string $check_out   Check-out date YYYY-MM-DD.
+ * @return array               ['available' => bool, 'reason' => string]
+ */
+function guesty_check_availability( $listing_id, $check_in, $check_out ) {
+    $token = guesty_get_token();
+    if ( ! $token ) {
+        return [ 'available' => false, 'reason' => 'Authentication error. Please try again shortly.' ];
+    }
+
+    $cal_url = "https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/{$listing_id}"
+            . "?startDate={$check_in}&endDate={$check_out}";
+
+    $response = wp_remote_get( $cal_url, [
+        'headers' => [
+            'Authorization' => 'Bearer ' . $token,
+            'Accept'        => 'application/json',
+        ],
+        'timeout' => 20,
+    ] );
+
+    if ( is_wp_error( $response ) ) {
+        guesty_log( 'availability_check', 'Calendar API error: ' . $response->get_error_message() );
+        return [ 'available' => false, 'reason' => 'Unable to verify availability right now. Please try again.' ];
+    }
+
+    $http_code = wp_remote_retrieve_response_code( $response );
+    $body      = wp_remote_retrieve_body( $response );
+    $data      = json_decode( $body );
+
+    if ( $http_code !== 200
+        || ! isset( $data->status )
+        || (int) $data->status !== 200
+        || ! isset( $data->data->days )
+        || ! is_array( $data->data->days )
+    ) {
+        guesty_log( 'availability_check', 'Calendar API unexpected response HTTP ' . $http_code . ': ' . substr( $body, 0, 400 ) );
+        return [ 'available' => false, 'reason' => 'Unable to verify availability. Please try again.' ];
+    }
+
+    // Build a date → day-object lookup from the calendar response.
+    $day_map = [];
+    foreach ( $data->data->days as $day ) {
+        if ( isset( $day->date ) ) {
+            $day_map[ $day->date ] = $day;
+        }
+    }
+
+    $ci_ts = strtotime( $check_in );
+    $co_ts = strtotime( $check_out );
+
+    // Validate every night from check-in up to (but not including) check-out.
+    for ( $ts = $ci_ts; $ts < $co_ts; $ts = strtotime( '+1 day', $ts ) ) {
+        $date_str = gmdate( 'Y-m-d', $ts );
+
+        if ( ! isset( $day_map[ $date_str ] ) ) {
+            return [ 'available' => false, 'reason' => 'The selected dates could not be verified. Please choose different dates.' ];
+        }
+
+        $day = $day_map[ $date_str ];
+
+        if ( isset( $day->status ) && $day->status !== 'available' ) {
+            return [ 'available' => false, 'reason' => 'We are booked for these dates. Please choose different dates.' ];
+        }
+
+        // Check-in day must not be closed to arrival.
+        if ( $ts === $ci_ts && ! empty( $day->cta ) ) {
+            return [ 'available' => false, 'reason' => 'Check-in is not permitted on the selected arrival date. Please choose a different check-in date.' ];
+        }
+    }
+
+    // Check-out day must not be closed to departure.
+    $co_date = gmdate( 'Y-m-d', $co_ts );
+    if ( isset( $day_map[ $co_date ] ) && ! empty( $day_map[ $co_date ]->ctd ) ) {
+        return [ 'available' => false, 'reason' => 'Check-out is not permitted on the selected departure date. Please choose a different check-out date.' ];
+    }
+
+    return [ 'available' => true, 'reason' => '' ];
+}
+
+/**
+ * Resolve the Stripe payment provider ID used for a given listing.
+ *
+ * Resolution order:
+ *   1. Admin manual override  (Guesty Sync > Settings > Booking Settings)
+ *   2. paymentProviderId on the listing object in Guesty
+ *   3. Account-level default  GET /v1/payment-providers/default
+ *
+ * @param  string $listing_id  Optional Guesty listing ID for tier-2 lookup.
+ * @return string              Payment provider _id, or empty string if not found.
+ */
+function guesty_get_payment_provider_id( $listing_id = '' ) {
+    // Tier 1: admin override always wins
+    $saved = get_option('guesty_stripe_payment_provider_id', '');
+    if ($saved) return $saved;
+
+    $token = guesty_get_token();
+    if (!$token) return '';
+
+    // Tier 2: listing-level paymentProviderId
+    if ($listing_id) {
+        $resp = wp_remote_get(
+            "https://open-api.guesty.com/v1/listings/{$listing_id}",
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept'        => 'application/json',
+                ],
+                'timeout' => 15,
+            ]
+        );
+
+        if (!is_wp_error($resp) && wp_remote_retrieve_response_code($resp) === 200) {
+            $data = json_decode(wp_remote_retrieve_body($resp), true);
+            if (!empty($data['paymentProviderId'])) {
+                return $data['paymentProviderId'];
+            }
+        }
+    }
+
+    // Tier 3: account default
+    $resp = wp_remote_get(
+        'https://open-api.guesty.com/v1/payment-providers/default',
+        [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+                'Accept'        => 'application/json',
+            ],
+            'timeout' => 12,
+        ]
+    );
+
+    if (!is_wp_error($resp) && wp_remote_retrieve_response_code($resp) === 200) {
+        $data = json_decode(wp_remote_retrieve_body($resp), true);
+        // Response may be the provider object directly or wrapped under 'data'
+        return $data['_id'] ?? ($data['data']['_id'] ?? '');
+    }
+
+    return '';
 }
