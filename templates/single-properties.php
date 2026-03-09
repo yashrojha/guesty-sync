@@ -951,68 +951,72 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 
 	document.addEventListener("DOMContentLoaded", (event) => {
 		const bedroomEl = document.querySelector('.bedroomSwiper');
-		if (!bedroomEl) {
-			return;
-		}
+		if (bedroomEl) {
+			function toggleArrows() {
+				const swiper = this;
+				const prev = swiper.navigation.prevEl;
+				const next = swiper.navigation.nextEl;
 
-		const swiper = new Swiper(bedroomEl, {
-			slidesPerView: 2,
-			spaceBetween: 16,
-			loop: false,
-			navigation: {
-				nextEl: bedroomEl.querySelector('.swiper-button-next'),
-				prevEl: bedroomEl.querySelector('.swiper-button-prev'),
-			},
-			pagination: {
-				el: bedroomEl.querySelector('.swiper-pagination'),
-				type: 'fraction',
-			},
-			on: {
-				init: toggleArrows,
-				resize: toggleArrows,
-				slideChange: toggleArrows,
-			},
-			breakpoints: {
-				0: {
-					slidesPerView: 1.6,
-				},
-				767: {
-					slidesPerView: 2,
-				},
-			},
-		});
-
-		function toggleArrows() {
-			const swiper = this;
-			const prev = swiper.navigation.prevEl;
-			const next = swiper.navigation.nextEl;
-
-			// If no sliding possible → hide arrows
-			if (swiper.isBeginning && swiper.isEnd) {
-				prev.style.display = 'none';
-				next.style.display = 'none';
-			} else {
-				prev.style.display = '';
-				next.style.display = '';
+				// If no sliding possible → hide arrows
+				if (swiper.isBeginning && swiper.isEnd) {
+					prev.style.display = 'none';
+					next.style.display = 'none';
+				} else {
+					prev.style.display = '';
+					next.style.display = '';
+				}
 			}
+
+			const swiper = new Swiper(bedroomEl, {
+				slidesPerView: 2,
+				spaceBetween: 16,
+				loop: false,
+				navigation: {
+					nextEl: bedroomEl.querySelector('.swiper-button-next'),
+					prevEl: bedroomEl.querySelector('.swiper-button-prev'),
+				},
+				pagination: {
+					el: bedroomEl.querySelector('.swiper-pagination'),
+					type: 'fraction',
+				},
+				on: {
+					init: toggleArrows,
+					resize: toggleArrows,
+					slideChange: toggleArrows,
+				},
+				breakpoints: {
+					0: {
+						slidesPerView: 1.6,
+					},
+					767: {
+						slidesPerView: 2,
+					},
+				},
+			});
 		}
 
 		const btn = document.querySelector('.show-all-amenities');
 		const list = document.querySelector('.amenities-list');
+		if (btn && list) {
+			btn.addEventListener('click', function() {
+				list.classList.toggle('show-all');
+				this.textContent = list.classList.contains('show-all') ?
+					'Show less' :
+					'Show all';
+			});
+		}
 
-		btn.addEventListener('click', function() {
-			list.classList.toggle('show-all');
-			this.textContent = list.classList.contains('show-all') ?
-				'Show less' :
-				'Show all';
-		});
-
+		// Reserve button: on mobile opens the booking card popup (date picker).
 		const reserveBtn = document.querySelector('.reserve-btn');
 		const bookingCard = document.querySelector('.booking-card.sticky-sidebar');
-		if (!reserveBtn || !bookingCard) return;
-		reserveBtn.addEventListener('click', function() {
-			bookingCard.classList.add('reserve-clicked');
-		});
+		if (reserveBtn && bookingCard) {
+			function openReservePopup(e) {
+				if (e && e.type === 'touchend') e.preventDefault();
+				bookingCard.classList.add('reserve-clicked');
+			}
+			reserveBtn.addEventListener('click', openReservePopup);
+			reserveBtn.addEventListener('touchend', openReservePopup, { passive: false });
+		}
 	});
 </script>
 
@@ -1042,6 +1046,9 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 				opacity: 0;
 				background: var(--Black, #000);
 				transition: all 0.5s ease;
+				@media (max-width: 768px) {
+					display: none;
+				}
 			}
 
 			&:hover {
@@ -1253,7 +1260,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			}
 
 			@media (max-width: 1024px) {
-				font-size: 14px;
+				font-size: 12px;
 				line-height: 120%;
 				margin-top: 10px;
 			}
@@ -1518,7 +1525,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		}
 	}
 
-	.accordion-item.active .accordion-header span {
+	.accordion-item.active .accordion-header span:not(.accordion-header-text) {
 		transform: rotate(180deg);
 	}
 

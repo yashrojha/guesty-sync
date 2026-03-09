@@ -1,6 +1,3 @@
-/**
- * Register the js [guesty_property_map]
- */
 function initGuestyMap() {
 	if (typeof guestyData === 'undefined') return;
 
@@ -8,15 +5,11 @@ function initGuestyMap() {
 	const centerPos = { lat: -28.0167, lng: 153.4000 };
 	
 	const bounds = new google.maps.LatLngBounds();
-	
+
 	const map = new google.maps.Map(mapElement, {
 		zoom: 12,
 		center: centerPos,
-		mapId: "<?php echo get_option('google_map_id'); ?>",
-		styles: [
-			{ "stylers": [{ "saturation": -100 }] },
-			{ "featureType": "water", "stylers": [{ "color": "#ffffff" }] }
-		],
+		mapId: guestyData.mapId || undefined,
 		disableDefaultUI: true,
 		zoomControl: true
 	});
@@ -25,16 +18,12 @@ function initGuestyMap() {
 
 	guestyData.locations.forEach(prop => {
 		const position = { lat: prop.lat, lng: prop.lng };
-
-		// 2. Extend the bounds to include this marker's position
 		bounds.extend(position);
-				
-		// Create custom HTML for the marker
+
         const markerTag = document.createElement('div');
         markerTag.className = 'guesty-marker';
         markerTag.style.backgroundImage = `url(${prop.logo})`;
 		
-		// 2. Create the Advanced Marker
 		const marker = new google.maps.marker.AdvancedMarkerElement({
 			position: position,
 			map: map,
@@ -42,9 +31,7 @@ function initGuestyMap() {
 			title: prop.title
 		});
 
-		// Click to open "Picasso" Style Card
-		marker.addListener("click", () => {
-			// Build the Swiper HTML
+		marker.addListener("gmp-click", () => {
 			const slidesHtml = prop.images.map(url => `
 				<div class="swiper-slide">
 					<a href="${prop.link}">
@@ -73,7 +60,6 @@ function initGuestyMap() {
 			infoWindow.setContent(content);
 			infoWindow.open(map, marker);
 			
-			// CRITICAL: Initialize Swiper ONLY when InfoWindow is ready
 			google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
 				new Swiper(".mapSwiper", {
 					loop: true,
@@ -90,7 +76,6 @@ function initGuestyMap() {
 		});
 	});
 	
-	// 3. Tell the map to fit all extended bounds
 	map.fitBounds(bounds);
 }
 window.addEventListener('load', initGuestyMap);

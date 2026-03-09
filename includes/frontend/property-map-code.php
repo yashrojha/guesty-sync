@@ -11,13 +11,22 @@ function guesty_map_shortcode_handler() {
 	$map_id = get_option('google_map_id');
     if (empty($map_id)) return 'Please set Google Map ID.';
 
-    // 1. Enqueue Google Maps
-    wp_enqueue_script('google-maps', "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=marker", array(), null, true);
+    wp_enqueue_script(
+        'google-maps',
+        "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=marker&loading=async",
+        array(),
+        null,
+        true
+    );
     
-    // 2. Register and Enqueue your custom JS file
-    wp_register_script('guesty-map-js', plugin_dir_url(__FILE__) . 'js/map-logic.js', array('google-maps'), '1.0', true);
+    wp_register_script(
+        'guesty-map-js',
+        plugin_dir_url(__FILE__) . 'js/map-logic.js',
+        array('google-maps'),
+        rand(100000, 999999),
+        true
+    );
 
-    // 3. Fetch Properties from Custom Post Type
     $args = array(
         'post_type'      => 'properties',
         'posts_per_page' => -1,
@@ -75,9 +84,9 @@ function guesty_map_shortcode_handler() {
         wp_reset_postdata();
     }
 
-    // 4. Pass data to JS
     wp_localize_script('guesty-map-js', 'guestyData', array(
-        'locations' => $properties
+        'locations' => $properties,
+        'mapId'     => $map_id,
     ));
     wp_enqueue_script('guesty-map-js');
 	
