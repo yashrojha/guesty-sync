@@ -1,9 +1,5 @@
-    <?php
+<?php
     if (!defined('ABSPATH')) exit;
-
-    /**
-     * Admin Menu
-     */
     add_action('admin_menu', function () {
         add_menu_page(
             'Guesty Property Sync',

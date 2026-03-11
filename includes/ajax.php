@@ -234,10 +234,11 @@ function guesty_archive_filter($query) {
             $query->set('meta_query', $meta_query);
         }
 
-        // Order by title ascending (properties archive)
+        // Order & pagination for properties archive
         if (is_post_type_archive('properties')) {
             $query->set('orderby', 'title');
             $query->set('order', 'ASC');
+            $query->set('posts_per_page', 12);
         }
     }
 }

@@ -1,9 +1,8 @@
 function initGuestyMap() {
 	if (typeof guestyData === 'undefined') return;
-
 	const mapElement = document.getElementById("guesty-custom-map");
+	if (!mapElement) return;
 	const centerPos = { lat: -28.0167, lng: 153.4000 };
-	
 	const bounds = new google.maps.LatLngBounds();
 
 	const map = new google.maps.Map(mapElement, {

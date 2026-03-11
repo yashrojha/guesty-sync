@@ -15,6 +15,7 @@ function guesty_map_shortcode_handler() {
         'google-maps',
         "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=marker&loading=async",
         array(),
+        rand(100000, 999999),
         null,
         true
     );

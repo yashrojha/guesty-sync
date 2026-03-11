@@ -650,8 +650,12 @@ body.guesty-search-modal-open {
 
 .property-grid {
 	display: grid;
-	grid-template-columns: repeat(2, 1fr);
+	grid-template-columns: repeat(3, 1fr);
 	gap: 64px 20px;
+
+	@media (max-width: 1250px) {
+		grid-template-columns: repeat(2, 1fr);
+	}
 
 	@media (max-width: 768px) {
 		grid-template-columns: repeat(1, 1fr);
@@ -661,13 +665,10 @@ body.guesty-search-modal-open {
 	.card-media {
 		position: relative;
 		overflow: hidden;
-		height: 400px;
-		width: 100%;
 		transition: all 0.4s ease-in-out;
-		@media (max-width: 1250px) {
-			height: auto;
-			aspect-ratio: 662 / 438;
-		}
+		height: auto;
+		width: 100%;
+		aspect-ratio: 662 / 438;
 	}
 
 	.card-swiper {
@@ -865,7 +866,7 @@ body.guesty-search-modal-open {
 .property-specs-bar {
 	font-size: 13px;
 	color: var(--Grey, #767676);
-	line-height: 100%;
+	line-height: 150%;
 	text-transform: uppercase;
 	font-family: var(--e-global-typography-accent-font-family), san-serif;
 	letter-spacing: 1.04px;
