@@ -1,9 +1,7 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-/**
- * Register the Shortcode [guesty_property_map]
- */
+// Register the Shortcode [guesty_property_map]
 function guesty_map_shortcode_handler() {
     $api_key = get_option('google_map_api');
     if (empty($api_key)) return 'Please set Google API Key.';
@@ -13,13 +11,12 @@ function guesty_map_shortcode_handler() {
 
     wp_enqueue_script(
         'google-maps',
-        "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=marker&loading=async",
+        "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=marker&loading=async&callback=initGuestyMap",
         array(),
-        rand(100000, 999999),
+        '1.23.3',
         null,
         true
     );
-    
     wp_register_script(
         'guesty-map-js',
         plugin_dir_url(__FILE__) . 'js/map-logic.js',
@@ -27,6 +24,17 @@ function guesty_map_shortcode_handler() {
         rand(100000, 999999),
         true
     );
+
+    static $defer_map_scripts_added = false;
+    if (!$defer_map_scripts_added) {
+        add_filter('script_loader_tag', function ($tag, $handle, $src) {
+            if (in_array($handle, array('google-maps', 'guesty-map-js'), true)) {
+                return str_replace(' src', ' defer src', $tag);
+            }
+            return $tag;
+        }, 10, 3);
+        $defer_map_scripts_added = true;
+    }
 
     $args = array(
         'post_type'      => 'properties',

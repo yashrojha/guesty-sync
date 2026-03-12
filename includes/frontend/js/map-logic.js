@@ -77,4 +77,4 @@ function initGuestyMap() {
 	
 	map.fitBounds(bounds);
 }
-window.addEventListener('load', initGuestyMap);
+window.initGuestyMap = initGuestyMap;

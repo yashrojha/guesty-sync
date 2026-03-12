@@ -29,8 +29,8 @@ function guesty_render_search_bar()
 		<form id="guesty-search-form" class="guesty-search-bar" method="get" action="<?php echo esc_url(get_post_type_archive_link('properties')); ?>">
 			<div class="guesty-field-wrap">
 				<div class="guesty-field option-where">
-					<label>Where</label>
-					<select name="city">
+					<label for="city">Where</label>
+					<select name="city" id="city">
 						<option value="">Select your destination</option>
 						<?php
 						$cities = get_guesty_property_cities();
@@ -45,7 +45,7 @@ function guesty_render_search_bar()
 					</select>
 				</div>
 				<div class="guesty-field option-date">
-					<label>Check In</label>
+					<label for="checkin_date">Check In</label>
 					<?php
 					$selected_checkIn = isset($_GET['checkIn']) ? sanitize_text_field($_GET['checkIn']) : '';
 					if ($selected_checkIn) {
@@ -58,7 +58,7 @@ function guesty_render_search_bar()
 					<input type="hidden" id="checkin_date" name="checkIn" value="<?php echo esc_attr($selected_checkIn); ?>" readonly>
 				</div>
 				<div class="guesty-field option-date">
-					<label>Check Out</label>
+					<label for="checkout_date">Check Out</label>
 					<?php
 					$selected_checkOut = isset($_GET['checkOut']) ? sanitize_text_field($_GET['checkOut']) : '';
 					if ($selected_checkOut) {
@@ -71,8 +71,8 @@ function guesty_render_search_bar()
 					<input type="hidden" id="checkout_date" name="checkOut" value="<?php echo esc_attr($selected_checkOut); ?>" readonly>
 				</div>
 				<div class="guesty-field option-guests">
-					<label>Guests</label>
-					<select name="minOccupancy">
+					<label for="minOccupancy">Guests</label>
+					<select name="minOccupancy" id="minOccupancy">
 						<?php
 						$max_allowed = get_max_property_occupancy();
 						$selected_minOccupancy = isset($_GET['minOccupancy']) ? sanitize_text_field($_GET['minOccupancy']) : '';
