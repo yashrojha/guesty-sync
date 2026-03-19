@@ -92,23 +92,21 @@
     }
 
     /**
-     * Tab 3: Booking Settings (Stripe + Policy links)
+     * Tab 3: Booking Settings (Payment Provider + Policy links)
      */
     function guesty_register_booking_settings() {
-        register_setting('guesty_booking_settings_group', 'guesty_stripe_publishable_key');
         register_setting('guesty_booking_settings_group', 'guesty_stripe_payment_provider_id');
         register_setting('guesty_booking_settings_group', 'guesty_booking_terms_url');
         register_setting('guesty_booking_settings_group', 'guesty_booking_privacy_url');
     }
     add_action('admin_init', 'guesty_register_booking_settings');
     function guesty_render_booking_settings() {
-        $stripe_key      = get_option('guesty_stripe_publishable_key', '');
         $provider_id     = get_option('guesty_stripe_payment_provider_id', '');
         $terms_url       = get_option('guesty_booking_terms_url', '');
         $privacy_url     = get_option('guesty_booking_privacy_url', '');
         ?>
         <h2>Booking Page Settings</h2>
-        <p>Configure Stripe payment integration and links used on the instant booking page.</p>
+        <p>Configure payment and links used on the instant booking page.</p>
         <form method="post" action="options.php">
             <?php
             settings_fields('guesty_booking_settings_group');
@@ -116,17 +114,10 @@
             ?>
             <table class="form-table">
                 <tr>
-                    <th scope="row">Stripe Publishable Key</th>
-                    <td>
-                        <input type="text" class="regular-text" name="guesty_stripe_publishable_key" value="<?php echo esc_attr($stripe_key); ?>" placeholder="pk_live_..." />
-                        <p class="description">Your Stripe publishable key (starts with <code>pk_live_</code> or <code>pk_test_</code>).</p>
-                    </td>
-                </tr>
-                <tr>
                     <th scope="row">Guesty Payment Provider ID</th>
                     <td>
                         <input type="text" class="regular-text" name="guesty_stripe_payment_provider_id" value="<?php echo esc_attr($provider_id); ?>" placeholder="5fe4b21675087f01a3c5ab5b" />
-                        <p class="description">The Guesty payment provider ID for your Stripe integration. Find this in Guesty &rsaquo; Settings &rsaquo; Payment Providers.</p>
+                        <p class="description">The Guesty payment provider ID used by GuestyPay. Find this in Guesty &rsaquo; Settings &rsaquo; Payment Providers. If left blank, the plugin will attempt to auto-detect it from the listing or account default.</p>
                     </td>
                 </tr>
                 <tr>

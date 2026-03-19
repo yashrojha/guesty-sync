@@ -420,7 +420,7 @@
         }
     }
 
-    .gbk-stripe-info {
+    .gbk-payment-info {
         font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
         font-size: 16px;
         line-height: 22px;

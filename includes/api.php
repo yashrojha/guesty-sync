@@ -341,7 +341,7 @@ function guesty_check_availability( $listing_id, $check_in, $check_out ) {
 }
 
 /**
- * Resolve the Stripe payment provider ID used for a given listing.
+ * Resolve the payment provider ID used for a given listing.
  *
  * Resolution order:
  *   1. Admin manual override  (Guesty Sync > Settings > Booking Settings)

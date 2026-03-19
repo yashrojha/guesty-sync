@@ -144,6 +144,9 @@ if (!$page_error) {
             $currency      = $money['currency']          ?? 'GBP';
             $invoice_items = $money['invoiceItems']      ?? [];
             $quote_id      = $quote_data['_id']          ?? '';
+            $rate_plan_id  = $quote_data['rates']['ratePlans'][0]['ratePlan']['_id']
+                           ?? $quote_data['rates']['ratePlans'][0]['money']['rateId']
+                           ?? '';
             $quote_valid   = true;
         } else {
             // guesty_log only accepts 2 args — serialize context into the message
@@ -198,12 +201,11 @@ if ($property_api) {
     $parties_allowed = !empty($terms['partiesEventsAllowed']);
     $children_ok     = empty($terms['childrenNotAllowed']);
     $cancel_code     = $terms['cancellationPolicy'] ?? '';
-    // paymentProviderId lives directly on the listing object in Guesty
     $payment_provider_id = $property_api['paymentProviderId'] ?? '';
 }
 
 /* =====================================================================
-    6. Auto-detect Stripe payment provider ID — 3-tier fallback
+    6. Auto-detect payment provider ID — 3-tier fallback
         Tier 1: Admin manual override (Guesty Sync > Settings > Booking)
         Tier 2: paymentProviderId on the listing (fetched above)
         Tier 3: Account-level default  GET /v1/payment-providers/default
@@ -465,7 +467,7 @@ get_header();
                         </div>
                         <div class="step-body" id="gbk-body-3" style="display:none;">
                             <?php if ($payment_provider_id) : ?>
-                                <p class="gbk-stripe-info">
+                                <p class="gbk-payment-info">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                         <path d="M12 1L3 5v6c0 5.25 3.75 10.15 9 11.25C17.25 21.15 21 16.25 21 11V5L12 1Z" stroke="#767676" stroke-width="1.5" fill="none" />
                                     </svg>
@@ -645,7 +647,8 @@ get_header();
             'use strict';
 
             /* ── Booking data from PHP ── */
-            const GBK = {
+            // Exposed on window so you can inspect in the browser console: window.GBK
+            const GBK = window.GBK = {
                 ajaxUrl: <?php echo json_encode(admin_url('admin-ajax.php')); ?>,
                 nonce: <?php echo json_encode($nonce); ?>,
                 listingId: <?php echo json_encode($listing_id); ?>,
@@ -656,9 +659,12 @@ get_header();
                 totalPrice: <?php echo json_encode((float) $total_price); ?>,
                 invoiceItems: <?php echo json_encode(array_values($invoice_items)); ?>,
                 quoteId: <?php echo json_encode($quote_id); ?>,
+                ratePlanId: <?php echo json_encode($rate_plan_id ?? ''); ?>,
                 paymentProviderId: <?php echo json_encode($payment_provider_id); ?>,
                 propertyTitle: <?php echo json_encode($property_title); ?>,
                 quoteValid: <?php echo $quote_valid ? 'true' : 'false'; ?>,
+                // Quote expires 24h after page load — warn after 20 min, block after 23h
+                quoteLoadedAt: Date.now(),
             };
 
             let guestId = null;
@@ -888,6 +894,21 @@ get_header();
 
                 const btn = document.getElementById('gbk-pay-btn');
 
+                // Wait for the GuestyPay script to load (it may not be ready immediately)
+                let attempts = 0;
+                const maxAttempts = 100; // 5 seconds max wait
+                
+                while (!window.guestyTokenization && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (!window.guestyTokenization) {
+                    showError('gbk-error-3', 'Payment system is not available. Please refresh the page and try again.');
+                    console.error('GuestyPay tokenization script failed to load');
+                    return;
+                }
+
                 try {
                     await window.guestyTokenization.render({
                         containerId: 'gbk-payment-container',
@@ -900,6 +921,7 @@ get_header();
                     });
                     guestyPayLoaded = true;
                 } catch (err) {
+                    console.error('GuestyPay render error:', err);
                     showError('gbk-error-3', 'Payment form failed to load. Please refresh the page and try again.');
                 }
             }
@@ -915,6 +937,13 @@ get_header();
                     }
                     if (!guestId) {
                         showError('gbk-error-3', 'Your guest session expired. Please go back to Step 1.');
+                        return;
+                    }
+
+                    // Quotes expire after 24h. Warn if page has been open > 23h.
+                    const quoteAgeMs = Date.now() - GBK.quoteLoadedAt;
+                    if (quoteAgeMs > 23 * 60 * 60 * 1000) {
+                        showError('gbk-error-3', 'Your booking session has expired. Please refresh the page to get updated pricing and try again.');
                         return;
                     }
 
@@ -943,6 +972,7 @@ get_header();
                         fd.append('guestyToken', paymentMethod._id);
                         fd.append('invoiceItems', JSON.stringify(GBK.invoiceItems));
                         fd.append('quoteId', GBK.quoteId);
+                        fd.append('ratePlanId', GBK.ratePlanId || '');
                         fd.append('paymentProviderId', GBK.paymentProviderId);
 
                         const res = await fetch(GBK.ajaxUrl, {
@@ -1003,6 +1033,13 @@ get_header();
                     return;
                 }
 
+                if (!GBK.quoteId) {
+                    msgEl.textContent = 'Quote information missing. Please refresh the page and try again.';
+                    msgEl.className += ' error';
+                    msgEl.style.display = 'block';
+                    return;
+                }
+
                 const btn = this;
                 btn.disabled = true;
                 btn.textContent = '…';
@@ -1011,10 +1048,7 @@ get_header();
                     const fd = new FormData();
                     fd.append('action', 'guesty_apply_booking_coupon');
                     fd.append('nonce', GBK.nonce);
-                    fd.append('listing_id', GBK.listingId);
-                    fd.append('checkIn', GBK.checkIn);
-                    fd.append('checkOut', GBK.checkOut);
-                    fd.append('guests', GBK.guests);
+                    fd.append('quoteId', GBK.quoteId);
                     fd.append('coupon', coupon);
 
                     const res = await fetch(GBK.ajaxUrl, {
@@ -1024,9 +1058,37 @@ get_header();
                     const data = await res.json();
 
                     if (data.success) {
+                        // Check if the response has the expected structure
+                        if (!data.data || !data.data.rates || !data.data.rates.ratePlans || !data.data.rates.ratePlans[0]) {
+                            console.error('Unexpected coupon response structure:', data.data);
+                            msgEl.textContent = 'Coupon applied but pricing update failed. Please refresh the page.';
+                            msgEl.className += ' error';
+                            msgEl.style.display = 'block';
+                            btn.disabled = false;
+                            btn.textContent = 'Apply';
+                            return;
+                        }
+
                         const newMoney = data.data.rates.ratePlans[0].money.money;
                         const newTotal = newMoney.subTotalPrice;
                         const newItems = newMoney.invoiceItems || [];
+                        
+                        // Get coupon details for display
+                        const appliedCoupons = data.data.coupons || [];
+                        let discountAmount = 0;
+                        let couponName = '';
+                        
+                        // Find discount in invoice items
+                        newItems.forEach(item => {
+                            if (item.type === 'DISCOUNT' || item.normalType === 'CO') {
+                                discountAmount += Math.abs(item.amount || 0);
+                            }
+                        });
+                        
+                        // Get coupon name from coupons array
+                        if (appliedCoupons.length > 0) {
+                            couponName = appliedCoupons[appliedCoupons.length - 1].name || coupon;
+                        }
 
                         GBK.totalPrice = newTotal;
                         GBK.invoiceItems = newItems;
@@ -1043,13 +1105,19 @@ get_header();
                                 `<div class="gbk-fee-row-total"><span>Total</span><span>${formatMoney(newTotal, GBK.currency)}</span></div>`;
                         }
 
-                        msgEl.textContent = `Coupon applied! New total: ${formatMoney(newTotal, GBK.currency)}`;
+                        // Show success message with discount amount
+                        if (discountAmount > 0) {
+                            msgEl.textContent = `${couponName || 'Coupon'} applied! You saved ${formatMoney(discountAmount, GBK.currency)}. New total: ${formatMoney(newTotal, GBK.currency)}`;
+                        } else {
+                            msgEl.textContent = `Coupon applied! New total: ${formatMoney(newTotal, GBK.currency)}`;
+                        }
                         msgEl.className += ' success';
                     } else {
                         msgEl.textContent = data.data || 'Invalid coupon code.';
                         msgEl.className += ' error';
                     }
                 } catch (err) {
+                    console.error('Coupon application error:', err);
                     msgEl.textContent = 'Failed to apply coupon. Please try again.';
                     msgEl.className += ' error';
                 } finally {

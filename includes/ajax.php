@@ -479,6 +479,7 @@ function guesty_create_booking_reservation_handler() {
     $guest_id            = sanitize_text_field($_POST['guestId']           ?? '');
     $guesty_token        = sanitize_text_field($_POST['guestyToken']       ?? '');
     $quote_id            = sanitize_text_field($_POST['quoteId']           ?? '');
+    $rate_plan_id        = sanitize_text_field($_POST['ratePlanId']        ?? '');
     $frontend_provider   = sanitize_text_field($_POST['paymentProviderId'] ?? '');
 
     $raw_items     = stripslashes($_POST['invoiceItems'] ?? '[]');
@@ -495,25 +496,37 @@ function guesty_create_booking_reservation_handler() {
     }
 
     // ── Step 1: Create reservation ────────────────────────────────────────
-    // Include quoteId so Guesty locks in the quoted price; fall back to
-    // explicit invoice items if no quote is available.
-    $res_body = [
-        'listingId'             => $listing_id,
-        'checkInDateLocalized'  => $check_in,
-        'checkOutDateLocalized' => $check_out,
-        'guestsCount'           => $guests,
-        'guestId'               => $guest_id,
-        'source'                => 'direct',
-        'status'                => 'confirmed',
-    ];
-
+    // Two endpoints exist:
+    //   POST /v1/reservations-v3/quote  — when we have a quoteId (locks price + coupon)
+    //   POST /v1/reservations-v3        — quick booking without a quote
+    // The legacy POST /v1/reservations does NOT accept quoteId.
+    // See: https://open-api-docs.guesty.com/docs/reservations-v3-booking-flow
     if ($quote_id) {
-        $res_body['quoteId'] = $quote_id;
-    } elseif (!empty($invoice_items)) {
-        $res_body['money'] = ['invoiceItems' => $invoice_items];
+        $res_url  = 'https://open-api.guesty.com/v1/reservations-v3/quote';
+        $res_body = [
+            'quoteId'  => $quote_id,
+            'status'   => 'confirmed',
+            'guestId'  => $guest_id,
+        ];
+        if ($rate_plan_id) {
+            $res_body['ratePlanId'] = $rate_plan_id;
+        }
+    } else {
+        $res_url  = 'https://open-api.guesty.com/v1/reservations-v3';
+        $res_body = [
+            'listingId'             => $listing_id,
+            'checkInDateLocalized'  => $check_in,
+            'checkOutDateLocalized' => $check_out,
+            'guestsCount'           => $guests,
+            'guestId'               => $guest_id,
+            'status'                => 'confirmed',
+            'source'                => 'manual',
+        ];
     }
 
-    $res_response = wp_remote_post('https://open-api.guesty.com/v1/reservations', [
+    guesty_log('reservation_request', 'URL: ' . $res_url . ' | Body: ' . json_encode($res_body));
+
+    $res_response = wp_remote_post($res_url, [
         'headers' => [
             'Authorization' => 'Bearer ' . $token,
             'Content-Type'  => 'application/json',
@@ -524,19 +537,38 @@ function guesty_create_booking_reservation_handler() {
     ]);
 
     if (is_wp_error($res_response)) {
-        wp_send_json_error('Failed to create reservation. Please try again.');
+        guesty_log('reservation_error', 'WP_Error: ' . $res_response->get_error_message());
+        wp_send_json_error('Network error creating reservation. Please try again.');
     }
 
     $res_code = wp_remote_retrieve_response_code($res_response);
-    $res_data = json_decode(wp_remote_retrieve_body($res_response), true);
+    $res_body_raw = wp_remote_retrieve_body($res_response);
+    $res_data = json_decode($res_body_raw, true);
+
+    // Log the full Guesty response — visible in wp-content/debug.log
+    guesty_log('reservation_response', 'HTTP ' . $res_code . ' | Body: ' . substr($res_body_raw, 0, 1000));
 
     if ($res_code !== 200 && $res_code !== 201) {
-        $err = $res_data['error']['message'] ?? ($res_data['message'] ?? 'Failed to create reservation.');
+        $err = '';
+        if (is_array($res_data)) {
+            $err = $res_data['error']['message']
+                ?? $res_data['errors'][0]['message']
+                ?? $res_data['message']
+                ?? $res_data['error']
+                ?? '';
+        }
+        if (!$err) {
+            $err = 'Reservation failed (HTTP ' . $res_code . '). Raw: ' . substr($res_body_raw, 0, 300);
+        }
+        guesty_log('reservation_error', 'HTTP ' . $res_code . ' | Error: ' . $err . ' | Full body: ' . substr($res_body_raw, 0, 1000));
         wp_send_json_error($err);
     }
 
-    $reservation_id    = $res_data['_id']              ?? '';
+    // V3 endpoints return "reservationId"; legacy returns "_id"
+    $reservation_id    = $res_data['reservationId'] ?? $res_data['_id'] ?? '';
     $confirmation_code = $res_data['confirmationCode'] ?? '';
+
+    guesty_log('reservation_success', 'ReservationId: ' . $reservation_id . ' | ConfirmationCode: ' . $confirmation_code);
 
     // ── Step 2: Resolve payment provider ID ──────────────────────────────
     // Priority: frontend-passed → admin override → listing → account default
@@ -553,11 +585,16 @@ function guesty_create_booking_reservation_handler() {
     }
 
     // ── Step 3: Attach GuestyPay token to the guest ───────────────────────
+    // _id   = GuestyPay tokenisation ID returned by guestyTokenization.submit()
+    // reuse = true so the method can be reused for future reservations
     $pay_body = [
-        '_id'               => $guesty_token,   // GuestyPay tokenization _id
+        '_id'               => $guesty_token,
         'paymentProviderId' => $provider_id,
         'reservationId'     => $reservation_id,
+        'reuse'             => true,
     ];
+
+    guesty_log('payment_method_request', 'GuestId: ' . $guest_id . ' | Provider: ' . $provider_id . ' | Token: ' . substr($guesty_token, 0, 12) . '…');
 
     $pay_response = wp_remote_post(
         "https://open-api.guesty.com/v1/guests/{$guest_id}/payment-methods",
@@ -577,14 +614,28 @@ function guesty_create_booking_reservation_handler() {
 
     if (is_wp_error($pay_response)) {
         $pay_err_msg = 'Payment attachment failed (network error).';
+        guesty_log('payment_method_error', 'WP_Error: ' . $pay_response->get_error_message());
     } else {
-        $pay_code = wp_remote_retrieve_response_code($pay_response);
-        $pay_data = json_decode(wp_remote_retrieve_body($pay_response), true);
+        $pay_code     = wp_remote_retrieve_response_code($pay_response);
+        $pay_body_raw = wp_remote_retrieve_body($pay_response);
+        $pay_data     = json_decode($pay_body_raw, true);
+
+        guesty_log('payment_method_response', 'HTTP ' . $pay_code . ' | Body: ' . substr($pay_body_raw, 0, 500));
 
         if ($pay_code === 200 || $pay_code === 201) {
             $pay_status = 'success';
         } else {
-            $pay_err_msg = $pay_data['error']['message'] ?? ($pay_data['message'] ?? 'Payment could not be attached.');
+            $pay_err_msg = '';
+            if (is_array($pay_data)) {
+                $pay_err_msg = $pay_data['error']['message']
+                    ?? $pay_data['errors'][0]['message']
+                    ?? $pay_data['message']
+                    ?? '';
+            }
+            if (!$pay_err_msg) {
+                $pay_err_msg = 'Payment could not be attached (HTTP ' . $pay_code . ').';
+            }
+            guesty_log('payment_method_error', 'HTTP ' . $pay_code . ' | Error: ' . $pay_err_msg);
         }
     }
 
@@ -597,55 +648,86 @@ function guesty_create_booking_reservation_handler() {
 }
 
 /**
- * Re-fetch a quote with an optional coupon code
+ * Add coupons to an existing quote using the correct Guesty API endpoint
  */
 add_action('wp_ajax_guesty_apply_booking_coupon', 'guesty_apply_booking_coupon_handler');
 add_action('wp_ajax_nopriv_guesty_apply_booking_coupon', 'guesty_apply_booking_coupon_handler');
 function guesty_apply_booking_coupon_handler() {
     check_ajax_referer('guesty_booking_nonce', 'nonce');
 
-    $listing_id = sanitize_text_field($_POST['listing_id'] ?? '');
-    $check_in   = sanitize_text_field($_POST['checkIn'] ?? '');
-    $check_out  = sanitize_text_field($_POST['checkOut'] ?? '');
-    $guests     = max(1, intval($_POST['guests'] ?? 1));
-    $coupon     = sanitize_text_field($_POST['coupon'] ?? '');
+    $quote_id = sanitize_text_field($_POST['quoteId'] ?? '');
+    $coupon   = sanitize_text_field($_POST['coupon'] ?? '');
 
-    if (!$listing_id || !$check_in || !$check_out) {
-        wp_send_json_error('Missing booking details.');
+    if (!$quote_id) {
+        wp_send_json_error('Missing quote ID. Please refresh the page and try again.');
+    }
+
+    if (!$coupon) {
+        wp_send_json_error('Please enter a coupon code.');
     }
 
     $token = guesty_get_token();
-    if (!$token) wp_send_json_error('Authentication failed.');
+    if (!$token) {
+        wp_send_json_error('Authentication failed.');
+    }
 
-    $body = [
-        'listingId'             => $listing_id,
-        'checkInDateLocalized'  => $check_in,
-        'checkOutDateLocalized' => $check_out,
-        'guestsCount'           => $guests,
-        'source'                => 'manual',
-    ];
-    if ($coupon) $body['coupon'] = $coupon;
+    // Use the correct Guesty API endpoint for adding coupons to quotes
+    // POST /quotes/{quoteId}/coupons with coupons array in body
+    // The query parameter should be a boolean true, not string "true"
+    $url = "https://open-api.guesty.com/v1/quotes/$quote_id/coupons?" . http_build_query([
+        'mergeAccommodationFarePriceComponents' => true
+    ]);
 
-    $response = wp_remote_post('https://open-api.guesty.com/v1/quotes', [
+    $response = wp_remote_post($url, [
         'headers' => [
             'Authorization' => 'Bearer ' . $token,
             'Content-Type'  => 'application/json',
             'accept'        => 'application/json',
         ],
-        'body'    => json_encode($body),
+        'body'    => json_encode([
+            'coupons' => [$coupon]
+        ]),
         'timeout' => 20,
     ]);
 
-    if (is_wp_error($response)) wp_send_json_error('Request failed.');
+    if (is_wp_error($response)) {
+        guesty_log('coupon_error', 'WP_Error: ' . $response->get_error_message());
+        wp_send_json_error('Request failed. Please try again.');
+    }
 
     $code = wp_remote_retrieve_response_code($response);
-    $data = json_decode(wp_remote_retrieve_body($response), true);
+    $body = wp_remote_retrieve_body($response);
+    $data = json_decode($body, true);
 
-    // Guesty returns 201 Created for POST /v1/quotes (not 200)
-    if (in_array($code, [200, 201], true) && isset($data['status']) && $data['status'] === 'valid') {
+    // Log the response for debugging
+    guesty_log('coupon_response', "HTTP {$code} | Coupon: {$coupon} | Body: " . substr($body, 0, 1000));
+
+    // Check if the coupon was successfully applied
+    // Success = HTTP 200 AND the response has _id and rates structure
+    // The Guesty API doesn't always return "status": "valid" for coupon responses
+    if ($code === 200 && isset($data['_id']) && isset($data['rates']['ratePlans'][0]['money']['money'])) {
+        // Check if coupon was actually applied by looking for it in the coupons array
+        $applied_coupons = $data['coupons'] ?? [];
+        $coupon_found = false;
+        
+        foreach ($applied_coupons as $applied) {
+            if (isset($applied['couponCode']) && strtoupper($applied['couponCode']) === strtoupper($coupon)) {
+                $coupon_found = true;
+                if (isset($applied['isValid']) && $applied['isValid'] === false) {
+                    wp_send_json_error('Coupon code "' . $coupon . '" is not valid for this booking.');
+                }
+                break;
+            }
+        }
+        
+        if (!$coupon_found) {
+            wp_send_json_error('Coupon was not applied. Please check the code and try again.');
+        }
+        
         wp_send_json_success($data);
     } else {
-        $msg = $data['error']['message'] ?? ($data['message'] ?? 'Invalid coupon or unavailable dates.');
+        $msg = $data['error']['message'] ?? ($data['message'] ?? 'Invalid coupon code or coupon cannot be applied to this booking.');
+        guesty_log('coupon_error', "Failed - HTTP {$code} | Message: {$msg}");
         wp_send_json_error($msg);
     }
 }
