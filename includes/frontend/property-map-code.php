@@ -11,7 +11,7 @@ function guesty_map_shortcode_handler() {
 
     wp_enqueue_script(
         'google-maps',
-        "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=marker&loading=async&callback=initGuestyMap",
+        "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=marker&loading=async",
         array(),
         '1.23.3',
         null,

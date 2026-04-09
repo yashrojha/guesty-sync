@@ -77,4 +77,28 @@ function initGuestyMap() {
 	
 	map.fitBounds(bounds);
 }
-window.initGuestyMap = initGuestyMap;
+
+// Init after async Maps API is ready (URL callback could run before this script).
+function scheduleGuestyMapInit() {
+	if (typeof guestyData === 'undefined') return;
+	if (!document.getElementById('guesty-custom-map')) return;
+
+	function attempt() {
+		if (typeof google === 'undefined' || !google.maps || !google.maps.Map) return false;
+		initGuestyMap();
+		return true;
+	}
+
+	if (attempt()) return;
+
+	var n = 0;
+	var id = setInterval(function () {
+		if (attempt() || ++n > 200) clearInterval(id);
+	}, 50);
+}
+
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', scheduleGuestyMapInit);
+} else {
+	scheduleGuestyMapInit();
+}
