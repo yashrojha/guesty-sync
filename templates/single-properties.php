@@ -189,8 +189,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 											?>
 												<div class="floor-plan-wrapper mobile" style="display: none;">
 													<a href="<?php echo esc_url($pdf_url); ?>"
-														data-fancybox="floorplan"
-														data-type="pdf"
+														data-fancybox="floorplan-mobile"
 														class="view-floor-plan-btn">
 														<span class="icon-floorplan">
 															<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -224,7 +223,6 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 											<div class="floor-plan-wrapper">
 												<a href="<?php echo esc_url($pdf_url); ?>"
 													data-fancybox="floorplan"
-													data-type="pdf"
 													class="view-floor-plan-btn">
 													<span class="icon-floorplan">
 														<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -289,7 +287,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 
 									$rooms_array = [];
 									if ($bedrooms = get_post_meta($post_id, 'guesty_bedrooms', true)) $rooms_array[] = $bedrooms . ' BEDROOMS';
-									if ($beds = get_post_meta($post_id, 'guesty_beds', true)) $rooms_array[] = $bathrooms . ' BEDS';
+									if ($beds = get_post_meta($post_id, 'guesty_beds', true)) $rooms_array[] = $beds . ' BEDS';
 									$combined_rooms = implode(' • ', $rooms_array);
 
 									// Pre-build slides and only keep bedrooms that have an image + valid bed text

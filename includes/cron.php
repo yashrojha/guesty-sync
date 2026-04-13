@@ -61,28 +61,40 @@ function guesty_clear_cron() {
 }
 
 /**
- * Attach cron to sync function
+ * Automated recurring event -> queue starter
  */
-add_action('guesty_cron_sync', 'guesty_run_automated_sync');
+add_action('guesty_cron_sync', function() {
+    // true = automated run
+    guesty_start_all_sync_queue(true);
+});
 
 /**
- * Connect Cron to Background Sync
+ * Manual/auto starter event
  */
-function guesty_run_automated_sync($is_cron = true) {
-    // 1. Check if a sync is already running to avoid overlaps
+add_action('guesty_all_sync_start', 'guesty_start_all_sync_queue', 10, 1);
+
+
+/**
+ * Build queue and schedule first tick.
+ */
+function guesty_start_all_sync_queue($is_cron = true) {
+	// 1. Check if a sync is already running to avoid overlaps
     if (get_transient('guesty_sync_lock')) {
-        guesty_log('warning', 'Cron: Sync already running, skipped');
+        guesty_log('warning', ($is_cron ? 'Cron' : 'Manual') . ': Sync already running, skipped');
         return;
     }
 	
 	// 🔒 Start global lock (All mode)
-	guesty_start_sync_lock('all', null, null);
+    guesty_start_sync_lock('all', null, null);
     guesty_set_sync_ui([
-        'running' => true,
-        'mode'    => 'all',
-		'property_total'   => 0,
-		'property_current' => 0,
-        'status'  => $is_cron ? 'Cron: Automated Syncing...' : 'Manual: All Syncing...',
+        'running'          => true,
+        'mode'             => 'all',
+        'property_total'   => 0,
+        'property_current' => 0,
+        'image_current'    => 0,
+        'image_total'      => 0,
+        'status'           => $is_cron ? 'Cron: Automated Syncing...' : 'Manual: All Syncing...',
+        'updated'          => time(),
     ]);
 	
 	// ✅ ONLY mark last run time if it's the automated schedule
@@ -90,68 +102,98 @@ function guesty_run_automated_sync($is_cron = true) {
         update_option('guesty_cron_last_run', time(), false);
         guesty_log('info', 'Cron: Auto sync started at ' . wp_date('F j, Y g:i A'));
     } else {
-		update_option('guesty_cron_last_run_manual', time(), false);
-        guesty_log('info', 'Manual: All Sync started by user at ' . wp_date('F j, Y g:i A'));
+        update_option('guesty_cron_last_run_manual', time(), false);
+        guesty_log('info', 'Manual: All sync started by user at ' . wp_date('F j, Y g:i A'));
     }
-    	
-    // 2. Get all properties from API
+	
+	// 2. Get all properties from API
     $properties = guesty_get_properties();
-    $ids = array_column($properties, '_id');
+    $ids = array_values(array_filter(array_column($properties, '_id')));
 	// 3. CLEANUP: Now that we know who is active, draft the rest
     guesty_cleanup_orphaned_properties($ids);
-
+	
+	
     if (empty($ids)) {
-		if ($is_cron) {
-			guesty_log('info', 'Cron: No properties found');
-		} else {
-			guesty_log('info', 'Manual: No properties found');
-		}
+        guesty_log('info', ($is_cron ? 'Cron' : 'Manual') . ': No properties found');
+        guesty_finish_all_sync_queue($is_cron, true);
         return;
     }
-
-    // 3. Set the global pending state
-    update_option('guesty_any_pending', array_fill_keys($ids, true));
-    
-    // 4. Start the lock
+	
+    update_option('guesty_any_pending', array_fill_keys($ids, true), false);
+    update_option('guesty_all_sync_queue', $ids, false);
+    update_option('guesty_all_sync_total', count($ids), false);
+    update_option('guesty_all_sync_is_cron', $is_cron ? 1 : 0, false);
     set_transient('guesty_sync_lock', 'cron_running', 2 * HOUR_IN_SECONDS);
-		
-    // 5. Background Loop
-    foreach ($ids as $index => $pid) {
-		// Update UI for the "Listener" progress bar
-		guesty_set_sync_ui([
-			'property'         => $pid,
-			'property_total'   => count($ids),
-			'property_current' => $index + 1,
-		]);
-		
-		if ($is_cron) {
-			guesty_sync_single_property_background($pid);
-		} else {
-			guesty_sync_single_property_background($pid, false);
-		}
-    }
+    wp_schedule_single_event(time() + 1, 'guesty_all_sync_tick');
+}
 
-    // 6. Cleanup
-    delete_transient('guesty_sync_lock');
-	if ($is_cron) {
-        $start = get_option('guesty_cron_last_run');
-    } else {
-        $start = get_option('guesty_cron_last_run_manual');
+/**
+ * Process one property per tick.
+ */
+add_action('guesty_all_sync_tick', function() {
+    if (!get_transient('guesty_sync_lock')) {
+        return;
     }
-	$duration = $start ? (time() - $start) : 0;
-	if ($is_cron) {
-		guesty_log('info', 'Cron: Auto sync finished at ' . wp_date('F j, Y g:i A') .' (Duration: ' . human_time_diff(0, $duration) . ')');
-	} else {
-		guesty_log('info', 'Manual: All sync finished at ' . wp_date('F j, Y g:i A') .' (Duration: ' . human_time_diff(0, $duration) . ')');
-	}
-	guesty_end_sync_lock();
-	delete_option('guesty_cron_last_run_manual');
-	guesty_set_sync_ui([
-        'running' => false, 
+    $queue   = get_option('guesty_all_sync_queue', []);
+    $total   = (int) get_option('guesty_all_sync_total', 0);
+    $is_cron = (int) get_option('guesty_all_sync_is_cron', 1) === 1;
+    if (empty($queue)) {
+        guesty_finish_all_sync_queue($is_cron, false);
+        return;
+    }
+    $pid = array_shift($queue);
+    update_option('guesty_all_sync_queue', $queue, false);
+    $current = $total - count($queue);
+    guesty_set_sync_ui([
+        'running'          => true,
+        'mode'             => 'all',
+        'property'         => $pid,
+        'property_total'   => $total,
+        'property_current' => $current,
+        'image_current'    => 0,
+        'image_total'      => 0,
+        'status'           => 'Downloading optimized images',
+        'updated'          => time(),
+    ]);
+    // Heavy work for ONE property only
+    guesty_sync_single_property_background($pid, $is_cron);
+    // keep lock alive for long queues
+    set_transient('guesty_sync_lock', 'cron_running', 2 * HOUR_IN_SECONDS);
+    // schedule next property
+    wp_schedule_single_event(time() + 1, 'guesty_all_sync_tick');
+});
+
+/**
+ * Final cleanup for all-sync queue
+ */
+function guesty_finish_all_sync_queue($is_cron = true, $no_properties = false) {
+    delete_transient('guesty_sync_lock');
+    delete_option('guesty_all_sync_queue');
+    delete_option('guesty_all_sync_total');
+    delete_option('guesty_all_sync_is_cron');
+    $start = $is_cron
+        ? get_option('guesty_cron_last_run')
+        : get_option('guesty_cron_last_run_manual');
+    $duration = $start ? (time() - $start) : 0;
+    if ($no_properties) {
+        // nothing else
+    } else {
+        guesty_log(
+            'info',
+            ($is_cron ? 'Cron: Auto sync finished at ' : 'Manual: All sync finished at ')
+            . wp_date('F j, Y g:i A')
+            . ' (Duration: ' . human_time_diff(0, $duration) . ')'
+        );
+    }
+    guesty_end_sync_lock();
+    delete_option('guesty_cron_last_run_manual');
+    guesty_set_sync_ui([
+        'running' => false,
         'status'  => 'Completed',
-        'updated' => time()
+        'updated' => time(),
     ]);
 }
+
 /**
  * Hook the background single property to your processing function
  */
@@ -264,7 +306,8 @@ function guesty_sync_single_property_background($pid, $is_cron = true) {
 		guesty_set_sync_ui([
 			'status'        => 'Downloading optimized images',
 			'image_current' => $index + 1,
-			'image_total'   => $image_total_count
+			'image_total'   => $image_total_count,
+			'updated'       => time()
 		]);
     }
 	

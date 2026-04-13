@@ -78,11 +78,10 @@ add_action('wp_ajax_guesty_trigger_manual_sync', function() {
         wp_send_json_error(['message' => 'Sync already running!']);
     }
 	
-    // ✅ This schedules the task to run 1 second from now in the background.
-    // We pass 'false' as an argument to tell our function it's NOT a cron run.
-    wp_schedule_single_event(time(), 'guesty_cron_sync', [false]); 
+    // Start queue in background
+    wp_schedule_single_event(time(), 'guesty_all_sync_start', [false]);
 
-    wp_send_json_success(['message' => 'Manual Background sync started! You can close this page now.']);
+    wp_send_json_success(['message' => 'Manual background sync queued.']);
 });
 
 /**
