@@ -251,15 +251,14 @@ function get_available_ids_from_be($check_in, $check_out, $guests = 1) {
         guesty_log('error', 'Token missing');
         return array(0);
     }
-
-    $url = 'https://booking.guesty.com/api/listings/availability';
     
-    // Use the exact parameter names that worked in your Postman
+    $url = 'https://booking.guesty.com/api/listings';
+
     $request_url = add_query_arg(array(
         'checkIn'      => $check_in,
         'checkOut'     => $check_out,
         'minOccupancy' => intval($guests),
-        'limit'        => 100 // Get all available in one go
+        'limit'        => 100,
     ), $url);
 
     $response = wp_remote_get($request_url, array(
@@ -332,7 +331,7 @@ function get_guesty_booking_blocked_dates($listing_id) {
                 'Authorization' => 'Bearer ' . $token,
                 'accept' => 'application/json'
             ],
-            'timeout' => 30 // Increase timeout for long ranges
+            'timeout' => 30
         ]);
 
         // 3. Check for WordPress errors (like connection timeouts)
