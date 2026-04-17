@@ -53,7 +53,7 @@
         ?>
         <div class="wrap">
             <h1>Guesty Sync Settings</h1>
-            <p>Manage your Open API & Booking Engine API Setting here.</p>
+            <p>Manage your Open API and Booking Engine API settings here.</p>
             <h2 class="nav-tab-wrapper">
                 <a href="?page=guesty-sync-settings&tab=open_api" 
                 class="nav-tab <?php echo $active_tab == 'open_api' ? 'nav-tab-active' : ''; ?>">
@@ -345,7 +345,7 @@
                 <thead>
                     <tr>
                         <th style="width:80px;">Row No.</th>
-                        <th style="width:200px;">Property Iamge</th>
+                        <th style="width:200px;">Property Image</th>
                         <th>Property Name</th>
                         <th>Guesty ID</th>
                         <th>Gallery Image Count</th>

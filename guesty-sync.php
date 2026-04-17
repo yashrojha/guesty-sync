@@ -2,8 +2,8 @@
 /*
 Plugin Name: Guesty Property Sync
 Description: Sync properties from Guesty API with token validation.
-Version: 1.0.0
-Author: Ifox
+Version: 1.2.1
+Author: Ifox Solutions
 */
 
 if (!defined('ABSPATH')) exit;
@@ -135,7 +135,7 @@ function guesty_enqueue_litepicker_assets() {
 }
 
 /**
- * Single Property Template File in Pluign
+ * Single Property Template File in Plugin
  */
 add_filter('single_template', 'guesty_load_property_template');
 function guesty_load_property_template($single_template) {
@@ -154,7 +154,7 @@ function guesty_load_property_template($single_template) {
 }
 
 /**
- * List Property Template File in Pluign
+ * List Property Template File in Plugin
  */
 add_filter('archive_template', 'guesty_load_property_archive_template');
 function guesty_load_property_archive_template($archive_template) {
@@ -185,7 +185,7 @@ function guesty_logs($level, $message, $post_id = 0, $context = []) {
 }
 
 /**
- * Guesty Log file table create in DB
+ * Create Guesty sync log table in the database
  */
 register_activation_hook(__FILE__, 'guesty_create_log_table');
 function guesty_create_log_table() {

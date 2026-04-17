@@ -1,5 +1,5 @@
 /**
- * Register the Frontend Dateselect js
+ * Register the frontend date picker (Litepicker)
  */
 document.addEventListener('DOMContentLoaded', function () {
     // Card Swiper (archive + featured)

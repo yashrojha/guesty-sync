@@ -62,7 +62,7 @@ function guesty_get_token() {
 }
 
 /**
- * Get valid token be (reuse or refresh)
+ * Get valid Booking Engine token (reuse or refresh)
  */
 function guesty_be_get_token() {
 
@@ -338,6 +338,48 @@ function guesty_check_availability( $listing_id, $check_in, $check_out ) {
     }
 
     return [ 'available' => true, 'reason' => '' ];
+}
+
+/**
+ * Fetch the Spaces (bedrooms/beds) data for a property from the Guesty Spaces API.
+ *
+ * The Spaces endpoint is the authoritative source for room names, types (BEDROOM,
+ * SHARED_SPACE, FULL_BATHROOM, HALF_BATHROOM), and per-bed counts.
+ * For simple listings the unitTypeId equals the listing _id.
+ *
+ * @param  string $listing_id  Guesty listing _id (used as unitTypeId).
+ * @return array|false         The spaces array on success, false on failure.
+ */
+function guesty_get_property_spaces( $listing_id ) {
+    $token = guesty_get_token();
+    if ( ! $token ) {
+        return false;
+    }
+
+    $url = "https://open-api.guesty.com/v1/properties/spaces/unit-type/{$listing_id}";
+
+    $response = wp_remote_get( $url, [
+        'headers' => [
+            'Authorization' => 'Bearer ' . $token,
+            'Accept'        => 'application/json',
+        ],
+        'timeout' => 20,
+    ] );
+
+    if ( is_wp_error( $response ) ) {
+        guesty_log( 'spaces_api', 'Spaces API error for ' . $listing_id . ': ' . $response->get_error_message() );
+        return false;
+    }
+
+    $code = wp_remote_retrieve_response_code( $response );
+    $body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+    if ( $code !== 200 || empty( $body['spaces'] ) ) {
+        guesty_log( 'spaces_api', 'Spaces API HTTP ' . $code . ' for ' . $listing_id );
+        return false;
+    }
+
+    return $body['spaces'];
 }
 
 /**

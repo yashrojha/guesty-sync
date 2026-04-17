@@ -99,7 +99,15 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 								$specs_array = [];
 								if ($property_type = get_post_meta($post_id, 'guesty_property_type', true)) $specs_array[] = $property_type;
 								if ($guests = get_post_meta($post_id, 'guesty_accommodates', true)) $specs_array[] = $guests . ' GUESTS';
-								if ($bedrooms = get_post_meta($post_id, 'guesty_bedrooms', true)) $specs_array[] = $bedrooms . ' BEDROOMS';
+								// Count only BEDROOM-type rooms; fall back to the synced guesty_bedrooms value
+								$_custom_brs_specs    = get_post_meta($post_id, 'guesty_custom_bedrooms', true);
+								$_bedroom_count_specs = get_post_meta($post_id, 'guesty_bedrooms', true);
+								if (is_array($_custom_brs_specs) && !empty($_custom_brs_specs)) {
+									$_bedroom_count_specs = count(array_filter($_custom_brs_specs, function($r) {
+										return in_array($r['type'] ?? 'BEDROOM', ['BEDROOM', ''], true);
+									}));
+								}
+								if ($_bedroom_count_specs) $specs_array[] = $_bedroom_count_specs . ' BEDROOMS';
 								if ($bathrooms = get_post_meta($post_id, 'guesty_bathrooms', true)) $specs_array[] = $bathrooms . ' BATHROOMS';
 								// Build specs as spans so each item wraps as a whole (no mid-item line breaks)
 								$combined_specs = '';
@@ -276,81 +284,103 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 									<?php endif;
 									endforeach; ?>
 									<?php
-									$listing_rooms = get_post_meta($post_id, 'guesty_listing_rooms', true);
-									$saved_images = get_post_meta($post_id, 'guesty_listing_rooms_data', true);
-									if (!is_array($listing_rooms)) {
-										$listing_rooms = [];
-									}
-									if (!is_array($saved_images)) {
-										$saved_images = [];
-									}
+							// Build bedroom slides from the custom-managed bedrooms meta
+							$custom_bedrooms = get_post_meta($post_id, 'guesty_custom_bedrooms', true);
+							if (!is_array($custom_bedrooms)) $custom_bedrooms = [];
 
-									$rooms_array = [];
-									if ($bedrooms = get_post_meta($post_id, 'guesty_bedrooms', true)) $rooms_array[] = $bedrooms . ' BEDROOMS';
-									if ($beds = get_post_meta($post_id, 'guesty_beds', true)) $rooms_array[] = $beds . ' BEDS';
-									$combined_rooms = implode(' • ', $rooms_array);
+							// Derive summary counts — BEDROOM and LIVING_ROOM types both contribute
+							$_br_total   = 0;
+							$_beds_total = 0;
+							foreach ($custom_bedrooms as $_cbr) {
+								$_type = $_cbr['type'] ?? 'BEDROOM';
+								if (!in_array($_type, ['BEDROOM', 'LIVING_ROOM', ''], true)) continue;
+								if (in_array($_type, ['BEDROOM', ''], true)) $_br_total++;
+								foreach (($_cbr['beds'] ?? []) as $_bed) {
+									$_beds_total += (int) ($_bed['quantity'] ?? 0);
+								}
+							}
+							$rooms_array = [];
+							if ($_br_total)   $rooms_array[] = $_br_total . ' BEDROOMS';
+							if ($_beds_total) $rooms_array[] = $_beds_total . ' BEDS';
+							$combined_rooms = implode(' • ', $rooms_array);
 
-									// Pre-build slides and only keep bedrooms that have an image + valid bed text
-									$bedroom_slides = [];
-									foreach ($listing_rooms as $index => $room_data) {
-										$bed_details = [];
-										if (!empty($room_data['beds'])) {
-											foreach ($room_data['beds'] as $bed) {
-												$count = $bed['quantity'];
-												$type  = str_replace('_', ' ', $bed['type']);
-												if ($count > 1) {
-													$type .= 'S';
-												}
-												$bed_details[] = $count . ' ' . $type;
-											}
-										}
-										$bed_display_text = implode(', ', $bed_details);
-										$is_disabled      = empty(trim($bed_display_text));
-										$image_id         = isset($saved_images[$index]['image_id']) ? $saved_images[$index]['image_id'] : '';
+							// Show BEDROOM and LIVING_ROOM rooms that have a photo
+							// Bedrooms also require at least one bed; living rooms show with just a photo
+							$bedroom_slides = [];
+							$bedroom_seq    = 0;
+							$living_seq     = 0;
+							foreach ($custom_bedrooms as $index => $bedroom) {
+								$room_type = $bedroom['type'] ?? 'BEDROOM';
 
-										// Skip if no image or no bed text
-										if ($is_disabled || empty($image_id)) {
-											continue;
-										}
+								// Skip bathroom types
+								if (!in_array($room_type, ['BEDROOM', 'LIVING_ROOM', ''], true)) continue;
 
-										$bedroom_slides[] = [
-											'image_id'        => $image_id,
-											'room_number'     => isset($room_data['roomNumber']) ? (int) $room_data['roomNumber'] : $index,
-											'bed_display_text' => $bed_display_text,
-										];
-									}
-									?>
+								$is_living_room = ($room_type === 'LIVING_ROOM');
+								if (!$is_living_room) $bedroom_seq++;
+								else $living_seq++;
 
-									<?php if (!empty($bedroom_slides)) : ?>
-										<div class="accordion-item open-accordion where-you-will-dream">
-											<button class="accordion-header">
-												Where you'll dream
-											</button>
-											<div class="accordion-panel">
-												<div class="bedroomSwiper swiper">
-													<span class="quick-specs"><?php echo $combined_rooms; ?></span>
-													<div class="swiper-wrapper">
-														<?php foreach ($bedroom_slides as $slide) : ?>
-															<div class="swiper-slide">
-																<div class="image-preview">
-																	<?php echo wp_get_attachment_image($slide['image_id'], 'full'); ?>
-																</div>
-																<h4 class="room-title">Bedroom <?php echo esc_html($slide['room_number'] + 1); ?></h4>
-																<p class="bed-info"><?php echo esc_html($slide['bed_display_text']); ?></p>
+								$image_id    = $bedroom['image_id'] ?? '';
+								$bed_details = [];
+								foreach (($bedroom['beds'] ?? []) as $bed) {
+									$count = (int) ($bed['quantity'] ?? 1);
+									$type  = str_replace('_', ' ', $bed['type'] ?? '');
+									if ($count > 1) $type .= 'S';
+									$bed_details[] = $count . ' ' . $type;
+								}
+								$bed_display_text = implode(', ', array_filter($bed_details));
+
+								// Bedrooms need a photo + bed info; living rooms only need a photo
+								if (empty($image_id)) continue;
+								if (!$is_living_room && empty($bed_display_text)) continue;
+
+								if (!empty($bedroom['name'])) {
+									$room_title = $bedroom['name'];
+								} elseif ($is_living_room) {
+									$room_title = $living_seq > 1 ? 'Living Room ' . $living_seq : 'Living Room';
+								} else {
+									$room_title = 'Bedroom ' . $bedroom_seq;
+								}
+
+								$bedroom_slides[] = [
+									'image_id'         => $image_id,
+									'room_title'       => $room_title,
+									'bed_display_text' => $bed_display_text,
+								];
+							}
+								?>
+
+								<?php if (!empty($bedroom_slides)) : ?>
+									<div class="accordion-item open-accordion where-you-will-dream">
+										<button class="accordion-header">
+											Where you'll dream
+										</button>
+										<div class="accordion-panel">
+											<div class="bedroomSwiper swiper">
+												<span class="quick-specs"><?php echo $combined_rooms; ?></span>
+												<div class="swiper-wrapper">
+													<?php foreach ($bedroom_slides as $slide) : ?>
+														<div class="swiper-slide">
+															<div class="image-preview">
+																<?php echo wp_get_attachment_image($slide['image_id'], 'full'); ?>
 															</div>
-														<?php endforeach; ?>
-													</div>
-													<div class="swiper-button-next" aria-label="Next"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-															<path d="M7.15703 6.175L10.9737 10L7.15703 13.825L8.33203 15L13.332 10L8.33203 5L7.15703 6.175Z" fill="black" />
-														</svg></div>
-													<div class="swiper-button-prev" aria-label="Previous"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-															<path d="M12.843 6.175L9.0263 10L12.843 13.825L11.668 15L6.66797 10L11.668 5L12.843 6.175Z" fill="black" />
-														</svg></div>
-													<div class="swiper-pagination"></div>
+															<h4 class="room-title"><?php echo esc_html($slide['room_title']); ?></h4>
+															<?php if (!empty($slide['bed_display_text'])) : ?>
+															<p class="bed-info"><?php echo esc_html($slide['bed_display_text']); ?></p>
+															<?php endif; ?>
+														</div>
+													<?php endforeach; ?>
 												</div>
+												<div class="swiper-button-next" aria-label="Next"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+														<path d="M7.15703 6.175L10.9737 10L7.15703 13.825L8.33203 15L13.332 10L8.33203 5L7.15703 6.175Z" fill="black" />
+													</svg></div>
+												<div class="swiper-button-prev" aria-label="Previous"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+														<path d="M12.843 6.175L9.0263 10L12.843 13.825L11.668 15L6.66797 10L11.668 5L12.843 6.175Z" fill="black" />
+													</svg></div>
+												<div class="swiper-pagination"></div>
 											</div>
 										</div>
-									<?php endif; ?>
+									</div>
+								<?php endif; ?>
 									<?php
 									$all_amenities = get_post_meta($post->ID, 'guesty_amenities', true);
 									$selected_amenities = get_post_meta($post->ID, 'guesty_top_amenities', true);

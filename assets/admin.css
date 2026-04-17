@@ -207,3 +207,209 @@ ul.guesty_amenities {
 		margin-bottom: 10px;
 	}
 }
+
+/* ─── Bedroom Manager ──────────────────────────────────────────────────────── */
+
+.bedroom-manager-wrap {
+    padding: 4px 0;
+}
+
+/* Status banner */
+.bedroom-sync-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.bedroom-sync-status .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+.status-locked {
+    background: #edf7ed;
+    border: 1px solid #4caf50;
+    color: #1e4620;
+}
+.status-locked .dashicons {
+    color: #4caf50;
+}
+.status-pending {
+    background: #f0f6fc;
+    border: 1px solid #72aee6;
+    color: #0a3060;
+}
+.status-pending .dashicons {
+    color: #2271b1;
+}
+
+/* Cards grid */
+#bedroom-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+/* Individual card */
+.bedroom-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Card header */
+.bedroom-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #dcdcde;
+}
+.bedroom-drag-handle {
+    cursor: grab;
+    color: #999;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.bedroom-drag-handle:active {
+    cursor: grabbing;
+}
+.bedroom-name-input {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+}
+.bedroom-delete-btn {
+    margin-left: auto !important;
+    color: #b32d2e !important;
+    flex-shrink: 0;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.bedroom-delete-btn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* Room type row (between header and body) */
+.bedroom-type-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    background: #fafafa;
+    border-bottom: 1px solid #dcdcde;
+}
+.bedroom-type-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3c434a;
+    white-space: nowrap;
+    min-width: 76px;
+}
+.bedroom-type-select {
+    max-width: 200px;
+}
+
+/* Card body */
+.bedroom-card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 14px;
+}
+@media (max-width: 900px) {
+    .bedroom-card-body {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Bathroom / no-beds layout: image section expands to fill */
+.bedroom-card[data-room-type="BATHROOM_FULL"] .bedroom-card-body,
+.bedroom-card[data-room-type="BATHROOM_HALF"] .bedroom-card-body {
+    grid-template-columns: 1fr;
+}
+
+/* Section labels */
+.label-row {
+    margin: 0 0 8px 0;
+    color: #3c434a;
+}
+
+/* Beds list */
+.beds-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.bed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.bed-qty-input {
+    width: 56px !important;
+}
+.bed-type-select {
+    flex: 1;
+    max-width: 200px;
+}
+.bed-remove-btn {
+    font-size: 18px;
+    line-height: 1;
+    color: #b32d2e !important;
+    padding: 0 4px;
+    text-decoration: none;
+}
+
+/* Image section */
+.bedroom-image-preview {
+    min-height: 60px;
+    margin-bottom: 8px;
+}
+.bedroom-image-preview img {
+    max-width: 120px;
+    max-height: 90px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    object-fit: cover;
+    display: block;
+}
+
+/* Footer */
+.bedroom-manager-footer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 4px;
+}
+#add-bedroom-btn .dashicons {
+    vertical-align: middle;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+.bedroom-count-label {
+    color: #646970;
+    font-size: 13px;
+}
+
+/* Sortable placeholder */
+.bedroom-sort-placeholder {
+    border: 2px dashed #2271b1;
+    background: rgba(34, 113, 177, 0.05);
+    border-radius: 4px;
+}

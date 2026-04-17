@@ -261,7 +261,7 @@ jQuery(document).ready(function ($) {
 					// If it stopped running, clear the interval to save resources
 					if (data.status === 'Completed') {
 						if (!statusInterval) return;
-						$('#guesty-progress-status').text('✅ All Property Sync Completed.');
+						$('#guesty-progress-status').text('✅ All Properties Sync Completed.');
 						setTimeout(() => $('#guesty-progress-wrapper').fadeOut(), 2000);
 					} else if (data.status === 'Completed-Single') {
 						if (!statusInterval) return;
@@ -280,52 +280,195 @@ jQuery(document).ready(function ($) {
 });
 
 /**
- * Listing Rooms Images Choose code
+ * Bedroom Manager – add / edit / delete bedrooms and bed types, pick room photos
  */
-jQuery(document).ready(function($) {
-    // 1. CHOOSE / CHANGE IMAGE
-    $(document).on('click', '.choose-bedroom-image', function(e) {
-        e.preventDefault();
-        var button = $(this);
-        var container = button.closest('.room-card');
+jQuery(document).ready(function ($) {
 
-        var frame = wp.media({
-            title: 'Select Bedroom Image',
-            button: { text: 'Use this image' },
+    if (!$('#bedroom-cards-container').length) return;
+
+    // Running counter so new cards always get a unique index key
+    let bedroomCounter = $('#bedroom-cards-container .bedroom-card').length;
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    function updateBedroomCount() {
+        $('#bedroom-count-display').text($('#bedroom-cards-container .bedroom-card').length);
+    }
+
+    // Room types that support a beds section
+    const BED_ROOM_TYPES = ['BEDROOM', 'LIVING_ROOM', ''];
+
+    function applyRoomTypeVisibility( $card ) {
+        const type = $card.find('.bedroom-type-select').val() || 'BEDROOM';
+        $card.attr('data-room-type', type);
+        if ( BED_ROOM_TYPES.indexOf(type) !== -1 ) {
+            $card.find('.bedroom-beds-section').slideDown(150);
+        } else {
+            $card.find('.bedroom-beds-section').slideUp(150);
+        }
+    }
+
+    /**
+     * Clone the PHP-rendered card template, swap __INDEX__ for a real number,
+     * and give the new bedroom a default name.
+     */
+    function createBedroomCard() {
+        const idx      = bedroomCounter++;
+        const label    = 'Room ' + ($('#bedroom-cards-container .bedroom-card').length + 1);
+        let   template = $('#bedroom-card-template').html();
+
+        // Replace every occurrence of __INDEX__ with the real index
+        template = template.replace(/__INDEX__/g, idx);
+
+        const $card = $(template);
+        $card.find('.bedroom-name-input').val(label);
+        $card.find('.bedroom-type-select').val('BEDROOM'); // default to Bedroom type
+        applyRoomTypeVisibility($card);
+        return $card;
+    }
+
+    // ── apply room-type visibility on load (for existing cards) ──────────────
+
+    $('#bedroom-cards-container .bedroom-card').each(function () {
+        applyRoomTypeVisibility( $(this) );
+    });
+
+    // ── room type change: show/hide beds section ──────────────────────────────
+
+    $(document).on('change', '.bedroom-type-select', function () {
+        applyRoomTypeVisibility( $(this).closest('.bedroom-card') );
+    });
+
+    // ── add bedroom ───────────────────────────────────────────────────────────
+
+    $('#add-bedroom-btn').on('click', function () {
+        const $card = createBedroomCard();
+        $('#bedroom-cards-container').append($card);
+        updateBedroomCount();
+
+        // Scroll new card into view
+        $card[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    // ── delete bedroom ────────────────────────────────────────────────────────
+
+    $(document).on('click', '.bedroom-delete-btn', function () {
+        if (!confirm('Remove this bedroom? This cannot be undone until you save the page.')) return;
+        $(this).closest('.bedroom-card').remove();
+        updateBedroomCount();
+    });
+
+    // ── add bed type row inside a bedroom ─────────────────────────────────────
+
+    $(document).on('click', '.add-bed-btn', function () {
+        const $card       = $(this).closest('.bedroom-card');
+        const bedroomIdx  = $card.data('index');
+        const $bedsList   = $card.find('.beds-list');
+        const bedIdx      = $bedsList.find('.bed-row').length;
+
+        // Grab one existing <select> to clone its options (preserves PHP-rendered option list)
+        const $optionsClone = $bedsList.find('.bed-type-select').first().clone();
+        $optionsClone.val('KING_BED');
+        $optionsClone.attr('name', 'custom_bedrooms[' + bedroomIdx + '][beds][' + bedIdx + '][type]');
+        $optionsClone.addClass('bed-type-select');
+
+        const $row = $('<div class="bed-row"></div>').attr('data-bed-index', bedIdx);
+        $row.append(
+            $('<input type="number" min="1" max="10" class="small-text bed-qty-input">')
+                .attr('name', 'custom_bedrooms[' + bedroomIdx + '][beds][' + bedIdx + '][quantity]')
+                .val(1)
+        );
+        $row.append($optionsClone);
+        $row.append('<button type="button" class="button-link bed-remove-btn" title="Remove bed type">&times;</button>');
+
+        $bedsList.append($row);
+    });
+
+    // ── remove bed type row ───────────────────────────────────────────────────
+
+    $(document).on('click', '.bed-remove-btn', function () {
+        const $list = $(this).closest('.beds-list');
+        if ($list.find('.bed-row').length <= 1) {
+            alert('Each bedroom must have at least one bed type.');
+            return;
+        }
+        $(this).closest('.bed-row').remove();
+    });
+
+    // ── image picker ──────────────────────────────────────────────────────────
+
+    $(document).on('click', '.choose-custom-bedroom-image', function (e) {
+        e.preventDefault();
+        const $btn  = $(this);
+        const $card = $btn.closest('.bedroom-card');
+
+        const frame = wp.media({
+            title   : 'Select Bedroom Photo',
+            button  : { text: 'Use this photo' },
             multiple: false,
-            library: {
-                type: 'image',
-                uploadedTo: wp.media.view.settings.post.id // Only images from this post
-            }
+            library : {
+                type      : 'image',
+                uploadedTo: wp.media.view.settings.post.id,
+            },
         });
 
-        frame.on('select', function() {
-            var attachment = frame.state().get('selection').first().toJSON();
-            var thumb = attachment.sizes.thumbnail ? attachment.sizes.thumbnail.url : attachment.url;
-            
-            container.find('.image-preview').html('<img src="' + thumb + '" />');
-            container.find('.room-image-id').val(attachment.id);
-            container.find('.remove-bedroom-image').show(); // Show remove button
-            button.text('Change Image');
+        frame.on('select', function () {
+            const attachment = frame.state().get('selection').first().toJSON();
+            const thumb = (attachment.sizes && attachment.sizes.thumbnail)
+                ? attachment.sizes.thumbnail.url
+                : attachment.url;
+
+            $card.find('.bedroom-image-preview').html('<img src="' + thumb + '">');
+            $card.find('.bedroom-image-id').val(attachment.id);
+            $card.find('.remove-custom-bedroom-image').show();
+            $btn.text('Change Photo');
         });
 
         frame.open();
     });
 
-    // 2. REMOVE IMAGE
-    $(document).on('click', '.remove-bedroom-image', function(e) {
+    $(document).on('click', '.remove-custom-bedroom-image', function (e) {
         e.preventDefault();
-        var button = $(this);
-        var container = button.closest('.room-card');
-
-        // Clear the preview and the hidden input value
-        container.find('.image-preview').empty();
-        container.find('.room-image-id').val('');
-        
-        // Hide remove button and reset text
-        button.hide();
-        container.find('.choose-bedroom-image').text('Choose Bedroom Image');
+        const $card = $(this).closest('.bedroom-card');
+        $card.find('.bedroom-image-preview').empty();
+        $card.find('.bedroom-image-id').val('');
+        $(this).hide();
+        $card.find('.choose-custom-bedroom-image').text('Choose Photo');
     });
+
+    // ── drag-to-reorder (jQuery UI Sortable, already loaded by WP) ────────────
+
+    $('#bedroom-cards-container').sortable({
+        handle     : '.bedroom-drag-handle',
+        placeholder: 'bedroom-sort-placeholder',
+        forcePlaceholderSize: true,
+        axis       : 'y',
+    });
+
+    // ── reset bedrooms from Guesty ────────────────────────────────────────────
+
+    $(document).on('click', '.bedroom-reset-btn', function () {
+        if (!confirm('This will clear all custom bedroom data. On the next Guesty sync, bedrooms will be re-seeded from Guesty. Continue?')) return;
+
+        const $btn   = $(this);
+        const postId = $btn.data('post-id');
+
+        $btn.prop('disabled', true).text('Resetting…');
+
+        $.post(guestySync.ajax, {
+            action : 'guesty_reset_custom_bedrooms',
+            nonce  : guestySync.nonce,
+            post_id: postId,
+        }).done(function (res) {
+            if (res.success) {
+                window.location.reload();
+            } else {
+                alert(res.data || 'Could not reset bedrooms.');
+                $btn.prop('disabled', false).text('Reset from Guesty');
+            }
+        });
+    });
+
 });
 
 /**

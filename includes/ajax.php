@@ -68,7 +68,7 @@ add_action('wp_ajax_guesty_save_featured_properties', function () {
 });
 
 /**
- * Manual Sync All Property
+ * Manual Sync All Properties
  */
 add_action('wp_ajax_guesty_trigger_manual_sync', function() {
     check_ajax_referer('guesty_sync_nonce', 'nonce');
@@ -243,7 +243,7 @@ function guesty_archive_filter($query) {
 }
 
 /**
- * AJAX handler to return availability property in dates
+ * Map Booking Engine availability to WordPress post IDs for the given dates
  */
 function get_available_ids_from_be($check_in, $check_out, $guests = 1) {
     $token = guesty_be_get_token();
@@ -584,7 +584,7 @@ function guesty_create_booking_reservation_handler() {
     }
 
     // ── Step 3: Attach GuestyPay token to the guest ───────────────────────
-    // _id   = GuestyPay tokenisation ID returned by guestyTokenization.submit()
+    // _id   = GuestyPay tokenization ID returned by guestyTokenization.submit()
     // reuse = true so the method can be reused for future reservations
     $pay_body = [
         '_id'               => $guesty_token,
@@ -744,7 +744,7 @@ function get_guesty_quote_handler() {
 		return;
 	}
     
-    // 2. Collect and sanitize data from Javascript
+    // 2. Collect and sanitize data from JavaScript
     // Make sure these keys match your formData.append() names!
     $listing_id = sanitize_text_field($_POST['listing_id']); 
     $check_in   = sanitize_text_field($_POST['checkIn']);
@@ -786,3 +786,25 @@ function get_guesty_quote_handler() {
         wp_send_json_error($data);
     }
 }
+
+/**
+ * AJAX: Reset custom bedroom data so the next Guesty sync re-seeds it
+ */
+add_action('wp_ajax_guesty_reset_custom_bedrooms', function () {
+    if (!current_user_can('edit_posts')) {
+        wp_send_json_error('Permission denied.');
+    }
+
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'guesty_sync_nonce')) {
+        wp_send_json_error('Invalid nonce.');
+    }
+
+    $post_id = absint($_POST['post_id'] ?? 0);
+    if (!$post_id || get_post_type($post_id) !== 'properties') {
+        wp_send_json_error('Invalid property.');
+    }
+
+    delete_post_meta($post_id, 'guesty_custom_bedrooms');
+
+    wp_send_json_success('Custom bedroom data cleared. Re-sync this property to repopulate from Guesty.');
+});

@@ -28,97 +28,283 @@ add_action('init', function () {
 });
 
 /**
- * Register the metabox for listing rooms
+ * Supported bed types — aligned with Guesty's bed-type picker
+ * Primary types match the main grid; secondary types match the "More bed types" section.
+ * Legacy keys (FULL_BED, TWIN_BED, etc.) are kept so existing synced data still renders.
  */
-add_action('add_meta_boxes', function () {
-	add_meta_box(
-        'listing_rooms_meta',
-        'Listing Rooms Details',
-        'render_listing_rooms_metabox',
+function guesty_get_bed_types() {
+    return [
+        // ── Primary (Guesty main grid) ──────────────────────────────────────
+        'KING_BED'       => 'King Bed',
+        'QUEEN_BED'      => 'Queen Bed',
+        'DOUBLE_BED'     => 'Double Bed',
+        'BUNK_BED'       => 'Bunk Bed',
+        'SINGLE_BED'     => 'Single Bed',
+        'SOFA_BED'       => 'Sofa Bed',
+        // ── More bed types (Guesty secondary section) ───────────────────────
+        'CRIB'           => 'Crib',
+        'TODDLER_BED'    => 'Toddler Bed',
+        'AIR_MATTRESS'   => 'Air Mattress',
+        'FLOOR_MATTRESS' => 'Floor Mattress',
+        'WATER_BED'      => 'Water Bed',
+        // ── Legacy keys — kept so previously synced data still displays ──────
+        'FULL_BED'       => 'Full Bed',
+        'TWIN_BED'       => 'Twin Bed',
+        'FUTON'          => 'Futon',
+        'HAMMOCK'        => 'Hammock',
+    ];
+}
+
+/**
+ * Supported room types — mirrors Guesty's Room Type dropdown
+ * Rooms typed as BATHROOM_* omit the beds section.
+ */
+function guesty_get_room_types() {
+    return [
+        'BEDROOM'        => 'Bedroom',
+        'LIVING_ROOM'    => 'Living Room',
+        'BATHROOM_FULL'  => 'Full Bathroom',
+        'BATHROOM_HALF'  => 'Half Bathroom',
+    ];
+}
+
+/** Returns true for room types that can have beds */
+function guesty_room_type_has_beds( $type ) {
+    return in_array( $type, [ 'BEDROOM', 'LIVING_ROOM', '', null ], true );
+}
+
+/**
+ * Render a single room card (used both in the PHP loop and as the JS clone template).
+ * $is_template = true skips image URL lookups (no valid attachment ID in the template).
+ */
+function guesty_render_bedroom_card( $index, $bedroom, $bed_types, $is_template = false ) {
+    $room_types = guesty_get_room_types();
+    $room_type  = esc_attr( $bedroom['type'] ?? 'BEDROOM' );
+    $name       = esc_attr( $bedroom['name'] ?? '' );
+    $beds       = ! empty( $bedroom['beds'] ) ? $bedroom['beds'] : [];
+    $image_id   = esc_attr( $bedroom['image_id'] ?? '' );
+    $image_url  = ( ! $is_template && $image_id ) ? wp_get_attachment_image_url( $image_id, 'thumbnail' ) : '';
+    $has_beds   = $is_template || guesty_room_type_has_beds( $room_type ); // template always shows beds (JS will toggle)
+    ?>
+    <div class="bedroom-card" data-index="<?php echo esc_attr( $index ); ?>" data-room-type="<?php echo $room_type; ?>">
+
+        <div class="bedroom-card-header">
+            <span class="dashicons dashicons-menu bedroom-drag-handle" title="Drag to reorder"></span>
+            <input
+                type="text"
+                name="custom_bedrooms[<?php echo esc_attr( $index ); ?>][name]"
+                value="<?php echo $name; ?>"
+                class="bedroom-name-input regular-text"
+                placeholder="e.g. Master Bedroom"
+            >
+            <button type="button" class="button button-link-delete bedroom-delete-btn">
+                <span class="dashicons dashicons-trash"></span> Remove
+            </button>
+        </div>
+
+        <div class="bedroom-type-row">
+            <label class="bedroom-type-label">Room Type</label>
+            <select name="custom_bedrooms[<?php echo esc_attr( $index ); ?>][type]" class="bedroom-type-select">
+                <?php foreach ( $room_types as $type_key => $type_label ) : ?>
+                    <option value="<?php echo esc_attr( $type_key ); ?>" <?php selected( $bedroom['type'] ?? 'BEDROOM', $type_key ); ?>>
+                        <?php echo esc_html( $type_label ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="bedroom-card-body">
+            <div class="bedroom-beds-section" <?php echo $has_beds ? '' : 'style="display:none;"'; ?>>
+                <p class="label-row"><strong>Beds in this room</strong></p>
+                <div class="beds-list">
+                    <?php foreach ( $beds as $bed_index => $bed ) : ?>
+                    <div class="bed-row" data-bed-index="<?php echo esc_attr( $bed_index ); ?>">
+                        <input
+                            type="number"
+                            name="custom_bedrooms[<?php echo esc_attr( $index ); ?>][beds][<?php echo esc_attr( $bed_index ); ?>][quantity]"
+                            value="<?php echo esc_attr( $bed['quantity'] ?? 1 ); ?>"
+                            min="1" max="10"
+                            class="small-text bed-qty-input"
+                        >
+                        <select name="custom_bedrooms[<?php echo esc_attr( $index ); ?>][beds][<?php echo esc_attr( $bed_index ); ?>][type]" class="bed-type-select">
+                            <?php foreach ( $bed_types as $type_key => $type_label ) : ?>
+                                <option value="<?php echo esc_attr( $type_key ); ?>" <?php selected( $bed['type'] ?? '', $type_key ); ?>>
+                                    <?php echo esc_html( $type_label ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" class="button-link bed-remove-btn" title="Remove bed type">&times;</button>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="button" class="button button-small add-bed-btn" data-bedroom-index="<?php echo esc_attr( $index ); ?>">
+                    + Add Bed Type
+                </button>
+            </div>
+
+            <div class="bedroom-image-section">
+                <p class="label-row"><strong>Room Photo</strong></p>
+                <div class="bedroom-image-preview">
+                    <?php if ( $image_id && $image_url ) : ?>
+                        <img src="<?php echo esc_url( $image_url ); ?>" alt="Room photo">
+                    <?php endif; ?>
+                </div>
+                <input type="hidden" name="custom_bedrooms[<?php echo esc_attr( $index ); ?>][image_id]" class="bedroom-image-id" value="<?php echo $image_id; ?>">
+                <div class="bedroom-image-actions">
+                    <button type="button" class="button button-small choose-custom-bedroom-image">
+                        <?php echo ( $image_id && ! $is_template ) ? 'Change Photo' : 'Choose Photo'; ?>
+                    </button>
+                    <button type="button" class="button-link remove-custom-bedroom-image"
+                        style="<?php echo ( $image_id && ! $is_template ) ? '' : 'display:none;'; ?> color:#a00; margin-left:8px;">
+                        Remove Photo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <?php
+}
+
+/**
+ * Register the Bedroom Manager metabox
+ */
+add_action( 'add_meta_boxes', function () {
+    add_meta_box(
+        'guesty_bedroom_manager',
+        'Bedroom Manager',
+        'render_bedroom_manager_metabox',
         'properties',
         'normal',
         'high'
     );
-});
-function render_listing_rooms_metabox($post) {
-    $listing_rooms = get_post_meta($post->ID, 'guesty_listing_rooms', true);
-	// Get your MANUALLY SAVED images (The source of truth for photos)
-	$saved_images = get_post_meta($post->ID, 'guesty_listing_rooms_data', true);
-    if (!is_array($listing_rooms)) $listing_rooms = [];
-    wp_nonce_field('save_listing_rooms', 'listing_rooms_nonce');
+} );
+
+function render_bedroom_manager_metabox( $post ) {
+    $custom_bedrooms = get_post_meta( $post->ID, 'guesty_custom_bedrooms', true );
+    $is_locked       = ! empty( $custom_bedrooms ) && is_array( $custom_bedrooms );
+    if ( ! is_array( $custom_bedrooms ) ) $custom_bedrooms = [];
+
+    $bed_types = guesty_get_bed_types();
+
+    wp_nonce_field( 'save_custom_bedrooms', 'custom_bedrooms_nonce' );
     ?>
-    <div class="room-items-container">
-        <?php foreach ($listing_rooms as $index => $room_data) : 
-            $bed_details = [];
-            if (!empty($room_data['beds'])) {
-                foreach ($room_data['beds'] as $bed) {
-                    $count = $bed['quantity'];
-                    $type = str_replace('_', ' ', $bed['type']);
-                    if ($count > 1) { $type = $type . 'S'; }
-                    $bed_details[] = $count . ' ' . $type;
-                }
-            }
-            $bed_display_text = implode(', ', $bed_details);
-            $is_disabled = empty(trim($bed_display_text)); 
-            $disabled_class = $is_disabled ? 'room-disabled' : '';
-			$image_id = isset($saved_images[$index]['image_id']) ? $saved_images[$index]['image_id'] : '';
-        ?>
-            <div class="room-card <?php echo $disabled_class; ?>">
-                <h4>Bedroom <?php echo $room_data['roomNumber'] + 1; ?></h4>
-                <p class="bed-info"><?php echo esc_html($bed_display_text); ?></p>
-                
-                <?php if(!$is_disabled) : ?>
-                    <p><strong>Room Image:</strong></p>
-                    <div class="image-preview">
-                        <?php if (!empty($image_id)) echo wp_get_attachment_image($image_id, 'thumbnail'); ?>
-                    </div>
-                    
-                    <input type="hidden" class="room-image-id" name="rooms[<?php echo $room_data['roomNumber']; ?>][image_id]" value="<?php echo esc_attr($image_id); ?>">
-                    
-                    <div class="image-actions">
-                        <button type="button" class="button choose-bedroom-image">
-                            <?php echo $image_id ? 'Change Image' : 'Choose Bedroom Image'; ?>
-                        </button>
-                        <button type="button" class="button remove-bedroom-image" style="<?php echo !$image_id ? 'display:none;' : ''; ?> color: #b32d2e;">
-                            Remove
-                        </button>
-                    </div>
-                <?php endif; ?>
-            </div>
-        <?php endforeach; ?>
+    <div class="bedroom-manager-wrap">
+
+        <div class="bedroom-sync-status <?php echo $is_locked ? 'status-locked' : 'status-pending'; ?>">
+            <?php if ( $is_locked ) : ?>
+                <span class="dashicons dashicons-lock"></span>
+                <strong>Custom Managed</strong> — Bedroom sync from Guesty is paused for this property. All changes here are saved to WordPress only.
+                <button type="button" class="button button-small bedroom-reset-btn" style="margin-left:10px;"
+                    data-post-id="<?php echo esc_attr( $post->ID ); ?>">
+                    Reset from Guesty
+                </button>
+            <?php else : ?>
+                <span class="dashicons dashicons-info"></span>
+                <strong>Pending Sync</strong> — Bedroom data will be seeded automatically on the next Guesty sync. You can also add bedrooms manually below to start custom management right now.
+            <?php endif; ?>
+        </div>
+
+        <div id="bedroom-cards-container">
+            <?php foreach ( $custom_bedrooms as $index => $bedroom ) : ?>
+                <?php guesty_render_bedroom_card( $index, $bedroom, $bed_types ); ?>
+            <?php endforeach; ?>
+        </div>
+
+        <div class="bedroom-manager-footer">
+            <button type="button" id="add-bedroom-btn" class="button button-primary">
+                <span class="dashicons dashicons-plus-alt2" style="vertical-align:middle;"></span> Add Room
+            </button>
+            <span class="bedroom-count-label">
+                Total: <strong id="bedroom-count-display"><?php echo count( $custom_bedrooms ); ?></strong> room(s)
+            </span>
+        </div>
+
     </div>
+
+    <?php
+    // Hidden JS template — PHP renders this once so JS can clone it without knowing bed types
+    ob_start();
+    guesty_render_bedroom_card( '__INDEX__', [ 'name' => '', 'beds' => [ [ 'quantity' => 1, 'type' => 'KING_BED' ] ], 'image_id' => '' ], $bed_types, true );
+    $card_template = ob_get_clean();
+    ?>
+    <script type="text/html" id="bedroom-card-template"><?php echo $card_template; ?></script>
     <?php
 }
+
 /**
- * Save bedroom image selections to post meta
+ * Save the Bedroom Manager metabox
  */
-add_action('save_post', function ($post_id) {
-    if (!isset($_POST['listing_rooms_nonce']) || !wp_verify_nonce($_POST['listing_rooms_nonce'], 'save_listing_rooms')) {
+add_action( 'save_post_properties', function ( $post_id ) {
+    if ( ! isset( $_POST['custom_bedrooms_nonce'] ) || ! wp_verify_nonce( $_POST['custom_bedrooms_nonce'], 'save_custom_bedrooms' ) ) {
         return;
     }
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-        return;
-    }
-    if (!current_user_can('edit_post', $post_id)) {
-        return;
-    }
-    // Sanitize and Save the Data
-    if (isset($_POST['rooms']) && is_array($_POST['rooms'])) {
-        $meta_to_save = [];
-        foreach ($_POST['rooms'] as $index => $room_data) {
-            // We save the room index and the WordPress Image ID
-            $meta_to_save[$index] = [
-                'roomNumber' => (int)$index,
-                'image_id'   => !empty($room_data['image_id']) ? absint($room_data['image_id']) : ''
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+    if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+
+    $allowed_bed_types  = array_keys( guesty_get_bed_types() );
+    $allowed_room_types = array_keys( guesty_get_room_types() );
+    $custom_bedrooms    = [];
+
+    if ( isset( $_POST['custom_bedrooms'] ) && is_array( $_POST['custom_bedrooms'] ) ) {
+        foreach ( $_POST['custom_bedrooms'] as $bedroom_raw ) {
+            $room_type = sanitize_text_field( $bedroom_raw['type'] ?? 'BEDROOM' );
+            if ( ! in_array( $room_type, $allowed_room_types, true ) ) $room_type = 'BEDROOM';
+
+            $name     = sanitize_text_field( $bedroom_raw['name'] ?? '' );
+            $image_id = ! empty( $bedroom_raw['image_id'] ) ? absint( $bedroom_raw['image_id'] ) : '';
+
+            $beds = [];
+            // Only process beds for room types that can have them
+            if ( guesty_room_type_has_beds( $room_type ) && ! empty( $bedroom_raw['beds'] ) && is_array( $bedroom_raw['beds'] ) ) {
+                foreach ( $bedroom_raw['beds'] as $bed_raw ) {
+                    $qty  = max( 1, min( 10, absint( $bed_raw['quantity'] ?? 1 ) ) );
+                    $type = sanitize_text_field( $bed_raw['type'] ?? 'KING_BED' );
+                    if ( ! in_array( $type, $allowed_bed_types, true ) ) $type = 'KING_BED';
+                    $beds[] = [ 'quantity' => $qty, 'type' => $type ];
+                }
+            }
+            // Rooms with no beds configured are valid (e.g. Guesty "Default bedroom"
+            // with all-zero counts). Don't inject a phantom bed entry.
+
+            $custom_bedrooms[] = [
+                'type'     => $room_type,
+                'name'     => $name,
+                'beds'     => $beds,
+                'image_id' => $image_id,
             ];
         }
-
-        // Save the array. WordPress serializes this automatically.
-        update_post_meta($post_id, 'guesty_listing_rooms_data', $meta_to_save);
-    } else {
-        delete_post_meta($post_id, 'guesty_listing_rooms_data');
     }
-});
+
+    update_post_meta( $post_id, 'guesty_custom_bedrooms', $custom_bedrooms );
+
+    // Derive guesty_bedrooms (BEDROOM type only) and guesty_beds totals
+    $bedroom_count   = 0;
+    $total_beds      = 0;
+    $bathroom_count  = 0.0;
+
+    foreach ( $custom_bedrooms as $room ) {
+        $t = $room['type'] ?? 'BEDROOM';
+        if ( $t === 'BEDROOM' ) {
+            $bedroom_count++;
+            foreach ( ( $room['beds'] ?? [] ) as $bed ) {
+                $total_beds += (int) ( $bed['quantity'] ?? 0 );
+            }
+        } elseif ( $t === 'BATHROOM_FULL' ) {
+            $bathroom_count += 1.0;
+        } elseif ( $t === 'BATHROOM_HALF' ) {
+            $bathroom_count += 0.5;
+        }
+    }
+
+    update_post_meta( $post_id, 'guesty_bedrooms', $bedroom_count );
+    update_post_meta( $post_id, 'guesty_beds', $total_beds );
+
+    // Only override guesty_bathrooms when the admin has explicitly added bathroom-type rooms
+    if ( $bathroom_count > 0 ) {
+        update_post_meta( $post_id, 'guesty_bathrooms', $bathroom_count );
+    }
+} );
 
 /**
  * Register the metabox for Top Amenities Selection
