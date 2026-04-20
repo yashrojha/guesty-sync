@@ -439,7 +439,7 @@ function guesty_property_fields() {
         'guesty_address_lng'      => 'Longitude',
 		'guesty_description_space' => 'Description Space',
 		'guesty_description_access' => 'Description Access',
-		'guesty_description_neighborhood' => 'Description Neighborhood',
+		'guesty_description_neighbourhood' => 'Description Neighbourhood',
 		'guesty_description_notes' => 'Description Notes',
 		'guesty_amenities'        => 'Amenities',
 		'guesty_minNights'        => 'minNights',

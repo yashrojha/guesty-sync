@@ -92,18 +92,39 @@
     }
 
     /**
+     * True when saved rich text has no meaningful content (so we fall back to Guesty / defaults).
+     *
+     * @param mixed $html
+     */
+    function guesty_booking_richtext_is_empty($html) {
+        if ($html === null || $html === false) {
+            return true;
+        }
+        return trim(wp_strip_all_tags((string) $html, true)) === '';
+    }
+
+    /**
      * Tab 3: Booking Settings (Payment Provider + Policy links)
      */
     function guesty_register_booking_settings() {
-        register_setting('guesty_booking_settings_group', 'guesty_stripe_payment_provider_id');
-        register_setting('guesty_booking_settings_group', 'guesty_booking_terms_url');
-        register_setting('guesty_booking_settings_group', 'guesty_booking_privacy_url');
+        $g = 'guesty_booking_settings_group';
+        register_setting($g, 'guesty_stripe_payment_provider_id', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting($g, 'guesty_booking_terms_url', ['sanitize_callback' => 'esc_url_raw']);
+        register_setting($g, 'guesty_booking_privacy_url', ['sanitize_callback' => 'esc_url_raw']);
+        register_setting($g, 'guesty_booking_policies_html', ['sanitize_callback' => 'wp_kses_post']);
+        register_setting($g, 'guesty_booking_rental_policies_link', ['sanitize_callback' => 'esc_url_raw']);
+        register_setting($g, 'guesty_booking_policies_term_link', ['sanitize_callback' => 'esc_url_raw']);
     }
     add_action('admin_init', 'guesty_register_booking_settings');
     function guesty_render_booking_settings() {
-        $provider_id     = get_option('guesty_stripe_payment_provider_id', '');
-        $terms_url       = get_option('guesty_booking_terms_url', '');
-        $privacy_url     = get_option('guesty_booking_privacy_url', '');
+        wp_enqueue_editor();
+
+        $provider_id              = get_option('guesty_stripe_payment_provider_id', '');
+        $terms_url                = get_option('guesty_booking_terms_url', '');
+        $privacy_url              = get_option('guesty_booking_privacy_url', '');
+        $policies_html            = (string) get_option('guesty_booking_policies_html', '');
+        $rental_policies_link     = get_option('guesty_booking_rental_policies_link', '');
+        $policies_term_link       = get_option('guesty_booking_policies_term_link', '');
         ?>
         <h2>Booking Page Settings</h2>
         <p>Configure payment and links used on the instant booking page.</p>
@@ -124,12 +145,47 @@
                     <th scope="row">Terms &amp; Conditions URL</th>
                     <td>
                         <input type="url" class="regular-text" name="guesty_booking_terms_url" value="<?php echo esc_attr($terms_url); ?>" placeholder="https://..." />
+                        <p class="description">Used in step 1 next to the agreement checkbox.</p>
                     </td>
                 </tr>
                 <tr>
                     <th scope="row">Privacy Policy URL</th>
                     <td>
                         <input type="url" class="regular-text" name="guesty_booking_privacy_url" value="<?php echo esc_attr($privacy_url); ?>" placeholder="https://..." />
+                    </td>
+                </tr>
+            </table>
+
+            <h3 style="margin-top:28px;">Rental policies (booking step 2)</h3>
+            <p class="description" style="max-width:720px;">Optional store-wide copy for the Rules &amp; Policies step. Use headings (e.g. <strong>Heading 3</strong> in the toolbar) to break up cancellation, damage deposit, or any other policies—you control how many sections appear. If you leave this empty, guests still see <strong>Cancellation Policy</strong> with text derived from the listing&rsquo;s Guesty cancellation type. The <strong>Terms &amp; Rules</strong> list (smoking, pets, etc.) always comes from Guesty.</p>
+            <table class="form-table">
+                <tr>
+                    <th scope="row">Store policies</th>
+                    <td>
+                        <?php
+                        wp_editor(
+                            $policies_html,
+                            'guesty_booking_policies_wped',
+                            [
+                                'textarea_name' => 'guesty_booking_policies_html',
+                                'textarea_rows' => 14,
+                                'media_buttons' => false,
+                            ]
+                        );
+                        ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="guesty_booking_rental_policies_link">Rental policies link</label></th>
+                    <td>
+                        <input type="url" class="regular-text" id="guesty_booking_rental_policies_link" name="guesty_booking_rental_policies_link" value="<?php echo esc_attr($rental_policies_link); ?>" placeholder="https://..." />
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="guesty_booking_policies_term_link">Terms link</label></th>
+                    <td>
+                        <input type="url" class="regular-text" id="guesty_booking_policies_term_link" name="guesty_booking_policies_term_link" value="<?php echo esc_attr($policies_term_link); ?>" placeholder="https://..." />
+                        <p class="description">Shown on step 2 under your store policies when set (separate from the step 1 Terms &amp; Conditions URL above).</p>
                     </td>
                 </tr>
             </table>

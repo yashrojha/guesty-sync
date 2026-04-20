@@ -260,7 +260,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 									$sections = [
 										'Description Space'        => 'The Space',
 										'Description Access'       => 'Guest Access',
-										'Description Neighborhood' => 'Neighborhood',
+										'Description Neighbourhood' => 'Neighbourhood',
 										'Description Notes'        => 'Notes',
 									];
 									foreach ($sections as $section => $label):
@@ -643,18 +643,14 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 					booking_button.innerText = 'SELECT DATES';
 				});
 
-				picker.on('hide', () => {
-					const start = picker.getStartDate();
-					const end = picker.getEndDate();
-					// If only one date selected OR no full range selected
-					if (!start || !end) {
-						picker.clearSelection();
-					}
-				});
-
-				picker.on('show', () => {
-					picker.updatePosition();
-				});
+			picker.on('hide', () => {
+				const start = picker.getStartDate();
+				const end = picker.getEndDate();
+				// If only one date selected OR no full range selected
+				if (!start || !end) {
+					picker.clearSelection();
+				}
+			});
 			}
 		});
 

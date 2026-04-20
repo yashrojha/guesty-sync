@@ -386,8 +386,11 @@
             font-size: 20px;
             text-transform: uppercase;
             letter-spacing: 1.2px;
-            margin: 0 0 12px;
+            margin: 28px 0 12px;
             color: var(--Black, #000);
+            &:first-child {
+                margin-top: 0;
+            }
         }
     
         p {
@@ -395,6 +398,49 @@
             line-height: 1.7;
             font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
             margin: 0;
+        }
+
+        .policy-rich {
+            color: rgba(0, 0, 0, 0.75);
+            line-height: 1.7;
+            font-size: 18px;
+            font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+
+            p:first-child {
+                margin-top: 0;
+            }
+
+            p:last-child {
+                margin-bottom: 0;
+            }
+
+            ul,
+            ol {
+                margin: 0.3em 0 1em 1.25em;
+                padding: 0;
+            }
+
+            a {
+                color: var(--Black, #000);
+                text-decoration: underline;
+            }
+        }
+    }
+
+    .policy-extra-links {
+        font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
+        font-size: 15px;
+        margin: 0 0 24px;
+        line-height: 1.6;
+
+        a {
+            color: var(--Black, #000);
+            text-decoration: underline;
+        }
+
+        .policy-extra-sep {
+            margin: 0 0.35em;
+            color: rgba(0, 0, 0, 0.45);
         }
     }
 
@@ -407,7 +453,7 @@
         li {
             display: flex;
             gap: 6px;
-            font-size: 16px;
+            font-size: 18px;
             font-family: var(--e-global-typography-primary-font-family, "Baskerville"), serif;
             color: rgba(0, 0, 0, 0.60);
             .rule-label {

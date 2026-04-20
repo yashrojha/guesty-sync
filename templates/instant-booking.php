@@ -319,6 +319,13 @@ $formatted_total = $quote_valid ? $currency_symbol . gbk_format_money($total_pri
 
 $terms_url   = get_option('guesty_booking_terms_url',   get_privacy_policy_url());
 $privacy_url = get_option('guesty_booking_privacy_url', get_privacy_policy_url());
+
+$store_policies_html  = (string) get_option('guesty_booking_policies_html', '');
+$rental_policies_link = trim((string) get_option('guesty_booking_rental_policies_link', ''));
+$policies_term_link   = trim((string) get_option('guesty_booking_policies_term_link', ''));
+
+$store_policies_use_custom = !guesty_booking_richtext_is_empty($store_policies_html);
+
 $nonce       = wp_create_nonce('guesty_booking_nonce');
 
 get_header();
@@ -435,10 +442,30 @@ get_header();
                         </div>
                         <div class="step-body" id="gbk-body-2" style="display:none;">
 
+                            <?php if ($store_policies_use_custom) : ?>
+                            <div class="policy-section policy-section--store-policies">
+                                <div class="policy-rich"><?php echo wp_kses_post($store_policies_html); ?></div>
+                            </div>
+                            <?php else : ?>
                             <div class="policy-section">
                                 <h3>Cancellation Policy</h3>
                                 <p><?php echo esc_html(gbk_cancellation_text($cancel_code)); ?></p>
                             </div>
+                            <?php endif; ?>
+
+                            <?php if ($rental_policies_link || $policies_term_link) : ?>
+                            <p class="policy-extra-links">
+                                <?php if ($rental_policies_link) : ?>
+                                    <a href="<?php echo esc_url($rental_policies_link); ?>" target="_blank" rel="noopener noreferrer">Rental policies</a>
+                                <?php endif; ?>
+                                <?php if ($rental_policies_link && $policies_term_link) : ?>
+                                    <span class="policy-extra-sep" aria-hidden="true">·</span>
+                                <?php endif; ?>
+                                <?php if ($policies_term_link) : ?>
+                                    <a href="<?php echo esc_url($policies_term_link); ?>" target="_blank" rel="noopener noreferrer">Terms</a>
+                                <?php endif; ?>
+                            </p>
+                            <?php endif; ?>
 
                             <div class="policy-section">
                                 <h3>Terms &amp; Rules</h3>
