@@ -9,7 +9,13 @@ if (did_action('elementor/loaded')) {
 		}
 	}, 20);
 }
-$region = $_GET['city'] ?? '';
+$raw_region = $_GET['city'] ?? '';
+if (is_array($raw_region)) {
+	$region_parts = array_values(array_filter(array_map('sanitize_text_field', $raw_region)));
+	$region = implode(', ', $region_parts);
+} else {
+	$region = sanitize_text_field($raw_region);
+}
 ?>
 <?php if (did_action('elementor/loaded')) { ?>
 	<div data-elementor-type="wp-post" data-elementor-id="<?php the_ID(); ?>" class="elementor elementor-<?php the_ID(); ?>">

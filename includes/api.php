@@ -442,3 +442,88 @@ function guesty_get_payment_provider_id( $listing_id = '' ) {
 
     return '';
 }
+
+/**
+ * Line written to the Guesty reservation (identifies this WordPress site / URL).
+ * Filter: {@see 'guesty_reservation_website_origin_line'} to change format.
+ *
+ * @return string
+ */
+function guesty_reservation_website_origin_line() {
+    $name = get_bloginfo( 'name' );
+    $url  = esc_url( home_url( '/' ) );
+    $line = sprintf( 'Reservation created by %s [%s]', $name, $url );
+
+    return apply_filters( 'guesty_reservation_website_origin_line', $line );
+}
+
+/**
+ * Set reservation notes via Open API (staff-visible “other” note by default).
+ * Does not fail the booking if the request errors — logs and returns false.
+ *
+ * Filter {@see 'guesty_reservation_origin_note_payload'} to change keys (e.g. use only guestNote).
+ * Return empty array to skip the request.
+ *
+ * @param string      $bearer_token   Open API access token.
+ * @param string      $reservation_id Guesty reservation _id.
+ * @param string|null $note_text      Optional; defaults to {@see guesty_reservation_website_origin_line()}.
+ * @return bool True if HTTP 2xx or skipped intentionally, false on error.
+ */
+function guesty_reservation_set_origin_note( $bearer_token, $reservation_id, $note_text = null ) {
+    if ( ! $reservation_id || ! $bearer_token ) {
+        return false;
+    }
+
+    if ( $note_text === null || $note_text === '' ) {
+        $note_text = guesty_reservation_website_origin_line();
+    }
+
+    $note_text = apply_filters( 'guesty_reservation_origin_note_text', $note_text, $reservation_id );
+    if ( $note_text === '' || $note_text === false ) {
+        return true;
+    }
+
+    $default_payload = [
+        'notes' => [
+            'otherNote' => $note_text,
+        ],
+    ];
+    $payload = apply_filters( 'guesty_reservation_origin_note_payload', $default_payload, $reservation_id, $note_text );
+    if ( ! is_array( $payload ) || empty( $payload ) ) {
+        return true;
+    }
+
+    $url = 'https://open-api.guesty.com/v1/reservations-v3/' . rawurlencode( $reservation_id ) . '/notes';
+
+    $response = wp_remote_request(
+        $url,
+        [
+            'method'  => 'PUT',
+            'headers' => [
+                'Authorization' => 'Bearer ' . $bearer_token,
+                'Content-Type'  => 'application/json',
+                'Accept'          => 'application/json',
+            ],
+            'body'    => wp_json_encode( $payload ),
+            'timeout' => 20,
+        ]
+    );
+
+    if ( is_wp_error( $response ) ) {
+        guesty_log( 'reservation_note_error', 'WP_Error: ' . $response->get_error_message() );
+
+        return false;
+    }
+
+    $code = wp_remote_retrieve_response_code( $response );
+    if ( $code < 200 || $code >= 300 ) {
+        $raw = wp_remote_retrieve_body( $response );
+        guesty_log( 'reservation_note_error', 'HTTP ' . $code . ' | ' . substr( (string) $raw, 0, 500 ) );
+
+        return false;
+    }
+
+    guesty_log( 'reservation_note_ok', 'ReservationId: ' . $reservation_id );
+
+    return true;
+}

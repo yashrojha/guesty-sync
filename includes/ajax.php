@@ -210,13 +210,29 @@ function guesty_archive_filter($query) {
 		
 		$meta_query = array('relation' => 'AND');
 
-        // Check for 'city' in the URL (?city=Bilinga)
+        // Check for 'city' in the URL — supports single value (?city=Bilinga) or array (?city[]=Bilinga&city[]=Burleigh)
         if (isset($_GET['city']) && !empty($_GET['city'])) {
-            $meta_query[] = array(
-                'key'     => 'guesty_address_city', // The actual meta key in your DB
-                'value'   => sanitize_text_field($_GET['city']),
-                'compare' => 'LIKE' // Use LIKE if you want partial matches, or '=' for exact
-            );
+            $raw_cities = $_GET['city'];
+            if (!is_array($raw_cities)) {
+                $raw_cities = [$raw_cities];
+            }
+            $cities_clean = array_values(array_filter(array_map('sanitize_text_field', $raw_cities)));
+
+            if (!empty($cities_clean)) {
+                if (count($cities_clean) === 1) {
+                    $meta_query[] = array(
+                        'key'     => 'guesty_address_city',
+                        'value'   => $cities_clean[0],
+                        'compare' => 'LIKE',
+                    );
+                } else {
+                    $meta_query[] = array(
+                        'key'     => 'guesty_address_city',
+                        'value'   => $cities_clean,
+                        'compare' => 'IN',
+                    );
+                }
+            }
         }
 
         // Check for 'minOccupancy' from your form
@@ -499,6 +515,9 @@ function guesty_create_booking_reservation_handler() {
     //   POST /v1/reservations-v3        — quick booking without a quote
     // The legacy POST /v1/reservations does NOT accept quoteId.
     // See: https://open-api-docs.guesty.com/docs/reservations-v3-booking-flow
+    // "OAPI" = Open API bookings (Guesty docs); filter to a custom source name or empty to omit.
+    $res_source = apply_filters( 'guesty_reservation_create_source', 'OAPI' );
+
     if ($quote_id) {
         $res_url  = 'https://open-api.guesty.com/v1/reservations-v3/quote';
         $res_body = [
@@ -509,6 +528,9 @@ function guesty_create_booking_reservation_handler() {
         if ($rate_plan_id) {
             $res_body['ratePlanId'] = $rate_plan_id;
         }
+        if ( is_string( $res_source ) && $res_source !== '' ) {
+            $res_body['source'] = $res_source;
+        }
     } else {
         $res_url  = 'https://open-api.guesty.com/v1/reservations-v3';
         $res_body = [
@@ -518,7 +540,7 @@ function guesty_create_booking_reservation_handler() {
             'guestsCount'           => $guests,
             'guestId'               => $guest_id,
             'status'                => 'confirmed',
-            'source'                => 'manual',
+            'source'                => ( is_string( $res_source ) && $res_source !== '' ) ? $res_source : 'manual',
         ];
     }
 
@@ -567,6 +589,9 @@ function guesty_create_booking_reservation_handler() {
     $confirmation_code = $res_data['confirmationCode'] ?? '';
 
     guesty_log('reservation_success', 'ReservationId: ' . $reservation_id . ' | ConfirmationCode: ' . $confirmation_code);
+
+    // Mark origin in Guesty: site title + URL on the reservation (other note).
+    guesty_reservation_set_origin_note( $token, $reservation_id );
 
     // ── Step 2: Resolve payment provider ID ──────────────────────────────
     // Priority: frontend-passed → admin override → listing → account default

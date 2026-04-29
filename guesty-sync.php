@@ -2,7 +2,7 @@
 /*
 Plugin Name: Guesty Property Sync
 Description: Sync properties from Guesty API with token validation.
-Version: 1.2.1
+Version: 1.2.5
 Author: Ifox Solutions
 */
 

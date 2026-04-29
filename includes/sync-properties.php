@@ -134,7 +134,9 @@ function guesty_upsert_property($property) {
 	update_post_meta($post_id, 'guesty_address_lng', $property['address']['lng']);
 	update_post_meta($post_id, 'guesty_description_space', $property['publicDescription']['space']);
 	update_post_meta($post_id, 'guesty_description_access', $property['publicDescription']['access']);
-	update_post_meta($post_id, 'guesty_description_neighbourhood', $property['publicDescription']['neighbourhood']);
+	$public_description = $property['publicDescription'] ?? [];
+	$neighbourhood_text = $public_description['neighbourhood'] ?? $public_description['neighborhood'] ?? '';
+	update_post_meta($post_id, 'guesty_description_neighbourhood', $neighbourhood_text);
 	update_post_meta($post_id, 'guesty_description_notes', $property['publicDescription']['notes']);
 	update_post_meta($post_id, 'guesty_amenities', $property['amenities']);
 	update_post_meta($post_id, 'guesty_minNights', $property['terms']['minNights']);

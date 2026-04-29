@@ -28,22 +28,59 @@ function guesty_render_search_bar()
 
 		<form id="guesty-search-form" class="guesty-search-bar" method="get" action="<?php echo esc_url(get_post_type_archive_link('properties')); ?>">
 			<div class="guesty-field-wrap">
-				<div class="guesty-field option-where">
-					<label for="city">Where</label>
-					<select name="city" id="city">
-						<option value="">Select your destination</option>
-						<?php
-						$cities = get_guesty_property_cities();
-						$selected_city = isset($_GET['city']) ? sanitize_text_field($_GET['city']) : '';
-						if (!empty($cities)) :
-							foreach ($cities as $city) : ?>
-								<option value="<?php echo esc_attr($city); ?>" <?php selected($selected_city, $city); ?>>
-									<?php echo esc_html($city); ?>
-								</option>
-						<?php endforeach;
-						endif; ?>
-					</select>
+			<div class="guesty-field option-where">
+				<label>Where</label>
+				<?php
+				$cities = get_guesty_property_cities();
+				$raw_city = isset($_GET['city']) ? $_GET['city'] : [];
+				if (!is_array($raw_city)) {
+					$raw_city = $raw_city !== '' ? [$raw_city] : [];
+				}
+				$selected_cities = array_map('sanitize_text_field', $raw_city);
+				$selected_cities = array_filter($selected_cities);
+				$multiselect_display = !empty($selected_cities) ? implode(', ', $selected_cities) : '';
+				?>
+				<div class="guesty-multiselect"
+					id="city-multiselect"
+					data-placeholder="Select your destination"
+					role="combobox"
+					aria-haspopup="listbox"
+					aria-expanded="false">
+					<button type="button" class="guesty-multiselect-trigger" aria-label="Select regions">
+						<span class="guesty-multiselect-value<?php echo !empty($selected_cities) ? ' has-value' : ''; ?>">
+							<?php echo !empty($multiselect_display) ? esc_html($multiselect_display) : 'Select your destination'; ?>
+						</span>
+					</button>
+					<div class="guesty-multiselect-dropdown" hidden>
+						<div class="guesty-multiselect-search-wrap">
+							<input type="text"
+								class="guesty-multiselect-search"
+								placeholder="Search regions…"
+								autocomplete="off"
+								aria-label="Search regions">
+						</div>
+						<ul class="guesty-multiselect-list" role="listbox" aria-multiselectable="true">
+							<?php if (!empty($cities)) : foreach ($cities as $city) : ?>
+							<li class="guesty-multiselect-option" role="option" aria-selected="<?php echo in_array($city, $selected_cities, true) ? 'true' : 'false'; ?>">
+								<input
+									type="checkbox"
+									class="guesty-multiselect-cb"
+									name="city[]"
+									value="<?php echo esc_attr($city); ?>"
+									tabindex="-1"
+									aria-hidden="true"
+									<?php checked(in_array($city, $selected_cities)); ?>>
+								<button type="button" class="guesty-multiselect-row">
+									<span class="guesty-multiselect-check-icon" aria-hidden="true"></span>
+									<span class="guesty-multiselect-option-label"><?php echo esc_html($city); ?></span>
+								</button>
+							</li>
+							<?php endforeach; endif; ?>
+						</ul>
+						<p class="guesty-multiselect-no-results" hidden role="status" aria-live="polite"><?php esc_html_e( 'No regions match your search.', 'guesty-sync' ); ?></p>
+					</div>
 				</div>
+			</div>
 				<div class="guesty-field option-date">
 					<label for="checkin_date">Check In</label>
 					<?php
