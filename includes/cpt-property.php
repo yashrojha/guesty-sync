@@ -1,8 +1,6 @@
 <?php
 if (!defined('ABSPATH')) exit;
-/**
- * Create Custom CPT for Properties
- */
+// Create Custom CPT for Properties
 add_action('init', function () {
     register_post_type('properties', [
         'labels' => [
@@ -27,27 +25,23 @@ add_action('init', function () {
     ]);
 });
 
-/**
- * Supported bed types — aligned with Guesty's bed-type picker
- * Primary types match the main grid; secondary types match the "More bed types" section.
- * Legacy keys (FULL_BED, TWIN_BED, etc.) are kept so existing synced data still renders.
- */
+// Bed type keys: Guesty main grid, secondary section, then legacy aliases for old syncs.
 function guesty_get_bed_types() {
     return [
-        // ── Primary (Guesty main grid) ──────────────────────────────────────
+        // Primary (Guesty grid)
         'KING_BED'       => 'King Bed',
         'QUEEN_BED'      => 'Queen Bed',
         'DOUBLE_BED'     => 'Double Bed',
         'BUNK_BED'       => 'Bunk Bed',
         'SINGLE_BED'     => 'Single Bed',
         'SOFA_BED'       => 'Sofa Bed',
-        // ── More bed types (Guesty secondary section) ───────────────────────
+        // More bed types (Guesty)
         'CRIB'           => 'Crib',
         'TODDLER_BED'    => 'Toddler Bed',
         'AIR_MATTRESS'   => 'Air Mattress',
         'FLOOR_MATTRESS' => 'Floor Mattress',
         'WATER_BED'      => 'Water Bed',
-        // ── Legacy keys — kept so previously synced data still displays ──────
+        // Legacy keys
         'FULL_BED'       => 'Full Bed',
         'TWIN_BED'       => 'Twin Bed',
         'FUTON'          => 'Futon',
@@ -55,10 +49,8 @@ function guesty_get_bed_types() {
     ];
 }
 
-/**
- * Supported room types — mirrors Guesty's Room Type dropdown
- * Rooms typed as BATHROOM_* omit the beds section.
- */
+// Supported room types — mirrors Guesty's Room Type dropdown
+// Rooms typed as BATHROOM_* omit the beds section.
 function guesty_get_room_types() {
     return [
         'BEDROOM'        => 'Bedroom',
@@ -68,15 +60,13 @@ function guesty_get_room_types() {
     ];
 }
 
-/** Returns true for room types that can have beds */
+// Returns true for room types that can have beds
 function guesty_room_type_has_beds( $type ) {
     return in_array( $type, [ 'BEDROOM', 'LIVING_ROOM', '', null ], true );
 }
 
-/**
- * Render a single room card (used both in the PHP loop and as the JS clone template).
- * $is_template = true skips image URL lookups (no valid attachment ID in the template).
- */
+// Render a single room card (used both in the PHP loop and as the JS clone template).
+// $is_template = true skips image URL lookups (no valid attachment ID in the template).
 function guesty_render_bedroom_card( $index, $bedroom, $bed_types, $is_template = false ) {
     $room_types = guesty_get_room_types();
     $room_type  = esc_attr( $bedroom['type'] ?? 'BEDROOM' );
@@ -166,9 +156,7 @@ function guesty_render_bedroom_card( $index, $bedroom, $bed_types, $is_template 
     <?php
 }
 
-/**
- * Register the Bedroom Manager metabox
- */
+// Register the Bedroom Manager metabox
 add_action( 'add_meta_boxes', function () {
     add_meta_box(
         'guesty_bedroom_manager',
@@ -232,9 +220,7 @@ function render_bedroom_manager_metabox( $post ) {
     <?php
 }
 
-/**
- * Save the Bedroom Manager metabox
- */
+// Save the Bedroom Manager metabox
 add_action( 'save_post_properties', function ( $post_id ) {
     if ( ! isset( $_POST['custom_bedrooms_nonce'] ) || ! wp_verify_nonce( $_POST['custom_bedrooms_nonce'], 'save_custom_bedrooms' ) ) {
         return;
@@ -306,9 +292,7 @@ add_action( 'save_post_properties', function ( $post_id ) {
     }
 } );
 
-/**
- * Register the metabox for Top Amenities Selection
- */
+// Register the metabox for Top Amenities Selection
 add_action('add_meta_boxes', function () {
     add_meta_box(
         'top_amenities_box',
@@ -371,9 +355,7 @@ add_action('save_post', function ($post_id) {
     }
 });
 
-/**
- * Register the metabox for Property Gallery show
- */
+// Register the metabox for Property Gallery show
 add_action('add_meta_boxes', function () {
     add_meta_box(
         'property_gallery',
@@ -408,9 +390,7 @@ function render_property_gallery_box($post) {
     <?php
 }
 
-/**
- * Register the metabox for Property Details show
- */
+// Register the metabox for Property Details show
 add_action('add_meta_boxes', function () {
     add_meta_box(
         'property_readonly_meta',
@@ -471,9 +451,7 @@ function render_property_readonly_meta($post) {
     echo '</table>';
 }
 
-/**
- * Register the metabox for Properties icon
- */
+// Register the metabox for Properties icon
 add_action('add_meta_boxes', function () {
     add_meta_box(
         'guesty_property_icon',
@@ -512,7 +490,7 @@ function guesty_property_icon_metabox($post) {
     </div>
     <?php
 }
-/*Save the Icon ID - IMPORTANT: Hook name must be save_post_{post_type}*/
+// Save the Icon ID - IMPORTANT: Hook name must be save_post_{post_type}
 add_action('save_post_properties', function ($post_id) {
     if (!isset($_POST['guesty_property_icon_nonce']) || !wp_verify_nonce($_POST['guesty_property_icon_nonce'], 'guesty_property_icon_nonce')) {
         return;
@@ -530,9 +508,7 @@ add_action('save_post_properties', function ($post_id) {
     }
 });
 
-/**
- * Register the metabox for Properties Floor Plan PDF Metabox
- */
+// Register the metabox for Properties Floor Plan PDF Metabox
 add_action('add_meta_boxes', function () {
     add_meta_box(
         'guesty_property_floor_plan',
@@ -588,9 +564,7 @@ add_action('save_post_properties', function ($post_id) {
     }
 });
 
- /**
- * Add and Reorder Multiple Columns for Properties
- */
+// Add and Reorder Multiple Columns for Properties
 add_filter('manage_properties_posts_columns', function ($columns) {
     // Define the new order manually
     $new_columns = [
@@ -605,9 +579,7 @@ add_filter('manage_properties_posts_columns', function ($columns) {
     ];
     return array_merge($new_columns, $columns);
 }, 20); 
- /**
- * Handle data for all custom columns in one place
- */
+// Handle data for all custom columns in one place
 add_action('manage_properties_posts_custom_column', function ($column, $post_id) {
     switch ($column) {
         case 'thumbnail':
@@ -656,10 +628,8 @@ add_action('manage_properties_posts_custom_column', function ($column, $post_id)
     }
 }, 10, 2);
 
-/**
- * Get the maximum occupancy value from all 'properties'
- * * @return int The highest value of 'guesty_accommodates'
- */
+// Get the maximum occupancy value from all 'properties'
+// @return int The highest value of 'guesty_accommodates'
 function get_max_property_occupancy() {
     global $wpdb;
 
@@ -679,10 +649,8 @@ function get_max_property_occupancy() {
     return $max_value ? (int) $max_value : 1;
 }
 
-/**
- * Get a unique, sorted list of cities from the 'properties' post type
- * @return array List of unique city names
- */
+// Get a unique, sorted list of cities from the 'properties' post type
+// @return array List of unique city names
 function get_guesty_property_cities() {
     global $wpdb;
 
@@ -702,10 +670,8 @@ function get_guesty_property_cities() {
     return $cities;
 }
 
-/**
- * Get all 'properties' post type
- * @return array List of post id
- */
+// Get all 'properties' post type
+// @return array List of post id
 function get_guesty_properties_list() {
   return get_posts([
     'post_type'      => 'properties',
@@ -717,10 +683,8 @@ function get_guesty_properties_list() {
   ]);
 }
 
-/**
- * Get a WP Property id based on guesty_id
- * @return array List of WP Property id
- */
+// Get a WP Property id based on guesty_id
+// @return array List of WP Property id
 function get_wp_ids_from_guesty_ids($guesty_ids) {
     global $wpdb;
     
@@ -737,9 +701,7 @@ function get_wp_ids_from_guesty_ids($guesty_ids) {
     return !empty($ids) ? $ids : array(0);
 }
 
-/**
- * Property Delete Then Releted images delete in media
- */
+// Property Delete Then Releted images delete in media
 add_action('before_delete_post', 'guesty_delete_cpt_attachments');
 function guesty_delete_cpt_attachments($post_id) {
 
@@ -758,12 +720,10 @@ function guesty_delete_cpt_attachments($post_id) {
     }
 }
 
-/**
- * Admin Single Property page Hide options publush status & date
- */
+// Admin Single Property page Hide options publush status & date
 add_action('admin_head', function () {
     $screen = get_current_screen();
-    if ($screen && $screen->post_type === 'properties') { // 🔁 your CPT slug
+    if ($screen && $screen->post_type === 'properties') {
         echo '<style>
             #misc-publishing-actions,
             #minor-publishing-actions,
@@ -774,9 +734,7 @@ add_action('admin_head', function () {
     }
 });
 
-/**
- * Hide Quick Edit and Trash links from the Properties list table
- */
+// Hide Quick Edit and Trash links from the Properties list table
 add_filter('post_row_actions', function ($actions, $post) {
     if ($post->post_type === 'properties') {
         // Hide 'Quick Edit'

@@ -2,7 +2,7 @@
 /*
 Plugin Name: Guesty Property Sync
 Description: Sync properties from Guesty API with token validation.
-Version: 1.2.5
+Version: 1.2.6
 Author: Ifox Solutions
 */
 
@@ -25,9 +25,7 @@ require_once GUESTY_SYNC_PATH . 'includes/frontend/property-map-code.php';
 require_once GUESTY_SYNC_PATH . 'includes/frontend/featured-properties-code.php';
 require_once GUESTY_SYNC_PATH . 'includes/frontend/trending-regions-code.php';
 
-/**
- * Enqueue Admin Assets in Plugin
- */
+// Enqueue Admin Assets in Plugin
 add_action('admin_enqueue_scripts', 'guesty_enqueue_admin_assets');
 function guesty_enqueue_admin_assets() {
 	// Enqueue CSS
@@ -52,9 +50,7 @@ function guesty_enqueue_admin_assets() {
     ]);
 }
 
-/**
- * Enqueue Frontend Assets in Plugin
- */
+// Enqueue Frontend Assets in Plugin
 add_action('wp_enqueue_scripts', 'guesty_enqueue_frontend_css', 100);
 function guesty_enqueue_frontend_css() {
 	// Enqueue CSS
@@ -74,9 +70,7 @@ function guesty_enqueue_frontend_css() {
     );
 }
 
-/**
- * Enqueue Archive Properties CSS (only on properties archive)
- */
+// Enqueue Archive Properties CSS (only on properties archive)
 add_action('wp_enqueue_scripts', 'guesty_enqueue_archive_properties_css', 100);
 function guesty_enqueue_archive_properties_css() {
 	if (!is_post_type_archive('properties')) {
@@ -90,9 +84,7 @@ function guesty_enqueue_archive_properties_css() {
 	);
 }
 
-/**
- * Enqueue Swiper Assets in Plugin
- */
+// Enqueue Swiper Assets in Plugin
 add_action('wp_enqueue_scripts', 'guesty_enqueue_swiper_assets');
 function guesty_enqueue_swiper_assets() {
     // Enqueue CSS
@@ -112,9 +104,7 @@ function guesty_enqueue_swiper_assets() {
     );
 }
 
-/**
- * Enqueue litepicker Assets in Plugin
- */
+// Enqueue litepicker Assets in Plugin
 add_action('wp_enqueue_scripts', 'guesty_enqueue_litepicker_assets');
 function guesty_enqueue_litepicker_assets() {
     // Enqueue CSS
@@ -134,9 +124,7 @@ function guesty_enqueue_litepicker_assets() {
     );
 }
 
-/**
- * Single Property Template File in Plugin
- */
+// Single Property Template File in Plugin
 add_filter('single_template', 'guesty_load_property_template');
 function guesty_load_property_template($single_template) {
     global $post;
@@ -153,9 +141,7 @@ function guesty_load_property_template($single_template) {
     return $single_template;
 }
 
-/**
- * List Property Template File in Plugin
- */
+// List Property Template File in Plugin
 add_filter('archive_template', 'guesty_load_property_archive_template');
 function guesty_load_property_archive_template($archive_template) {
     if (is_post_type_archive('properties')) {
@@ -167,9 +153,7 @@ function guesty_load_property_archive_template($archive_template) {
     return $archive_template;
 }
 
-/**
- * Store LOGS PER PROPERTY (IMPORTANT)
- */
+// Store Logs PER PROPERTY (IMPORTANT)
 function guesty_logs($level, $message, $post_id = 0, $context = []) {
     if (!$post_id) return;
     $logs = get_post_meta($post_id, 'guesty_property_logs', true) ?: [];
@@ -184,9 +168,7 @@ function guesty_logs($level, $message, $post_id = 0, $context = []) {
     update_post_meta($post_id, 'guesty_property_logs', $logs);
 }
 
-/**
- * Create Guesty sync log table in the database
- */
+// Create Guesty sync log table in the database
 register_activation_hook(__FILE__, 'guesty_create_log_table');
 function guesty_create_log_table() {
     global $wpdb;
@@ -224,19 +206,13 @@ function guesty_log($type, $message) {
     );
 }
 
-/**
- * Schedule cron code
- */
+// Schedule cron code
 register_activation_hook(__FILE__, 'guesty_schedule_cron');
 register_deactivation_hook(__FILE__, 'guesty_clear_cron');
 
-/* =========================
-   INSTANT BOOKING PAGE
-========================= */
+// Instant booking: rewrite + template
 
-/**
- * Register rewrite rule for /instant-booking/
- */
+// Register rewrite rule for /instant-booking/
 add_action('init', 'guesty_register_booking_rewrite');
 function guesty_register_booking_rewrite() {
     add_rewrite_rule('^instant-booking/?$', 'index.php?guesty_booking_page=1', 'top');
@@ -248,9 +224,7 @@ function guesty_booking_query_vars($vars) {
     return $vars;
 }
 
-/**
- * Load instant-booking.php template for the /instant-booking/ URL
- */
+// Load instant-booking.php template for the /instant-booking/ URL
 add_filter('template_include', 'guesty_load_instant_booking_template');
 function guesty_load_instant_booking_template($template) {
     if (get_query_var('guesty_booking_page')) {
@@ -262,9 +236,7 @@ function guesty_load_instant_booking_template($template) {
     return $template;
 }
 
-/**
- * Enqueue assets only on the instant booking page
- */
+// Enqueue assets only on the instant booking page
 add_action('wp_enqueue_scripts', 'guesty_enqueue_booking_page_assets', 100);
 function guesty_enqueue_booking_page_assets() {
     if (!get_query_var('guesty_booking_page')) return;
@@ -277,9 +249,7 @@ function guesty_enqueue_booking_page_assets() {
     );
 }
 
-/**
- * Set the document title for the booking page
- */
+// Set the document title for the booking page
 add_filter('pre_get_document_title', 'guesty_booking_page_title');
 function guesty_booking_page_title($title) {
     if (get_query_var('guesty_booking_page')) {
@@ -288,9 +258,7 @@ function guesty_booking_page_title($title) {
     return $title;
 }
 
-/**
- * Flush rewrite rules on plugin activation so /instant-booking/ works immediately
- */
+// Flush rewrite rules on plugin activation so /instant-booking/ works immediately
 register_activation_hook(__FILE__, 'guesty_flush_booking_rewrite');
 function guesty_flush_booking_rewrite() {
     guesty_register_booking_rewrite();

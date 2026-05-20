@@ -44,10 +44,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 							}
 
 							$total_count = count($attached_media);
-
-							// Take the first 5 for the grid display
 							$display_images = array_slice($attached_media, 0, 5);
-							// Keep the rest for the hidden Fancybox gallery
 							$hidden_images = array_slice($attached_media, 5);
 
 							$i = 0;
@@ -251,9 +248,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 									</div>
 								</div>
 
-								<div class="property-description">
-									<?php the_content(); ?>
-								</div>
+								<div class="property-description"><?php the_content(); ?></div>
 
 								<div class="guesty-accordions">
 									<?php
@@ -508,20 +503,9 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 												<div id="booking_guests"></div>
 											</div>
 										</div>
-										<div class="total-box subtotal">
-											<div class="label">Subtotal</div>
-											<div class="total-price" id="subtotal_price"></div>
-										</div>
-										<div class="fees-box">
-											<div class="label-fees">Fees <a href="javascript:void(0);" class="payment-list-detail-btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-														<path d="M15.825 9L12 12.7085L8.175 9L7 10.1417L12 15L17 10.1417L15.825 9Z" fill="black" />
-													</svg></a></div>
-											<div class="total-fees" id="total_fees"></div>
-										</div>
-										<div class="collapseExample" id="additional_items">
-											<ul>
-											</ul>
-										</div>
+									<!-- Categorised fee breakdown: accommodation → fees → taxes → discounts.
+									     Populated by JS once the quote loads. -->
+									<div class="gbk-sp-fee-list" id="sp-fee-list"></div>
 										<div class="total-box">
 											<div class="label">Total</div>
 											<div class="total-price" id="total_price"></div>
@@ -769,8 +753,6 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		const priceHeader = document.querySelector('.price-header');
 		const notifyText = notifyBox.querySelector('span');
 		const total_price = document.getElementById('total_price');
-		const subtotal_price = document.getElementById('subtotal_price');
-		const total_fees = document.getElementById('total_fees');
 		const booking_checkInDates = document.getElementById('booking_checkInDates');
 		const booking_checkOutDates = document.getElementById('booking_checkOutDates');
 		const booking_nights = document.getElementById('booking_nights');
@@ -831,13 +813,13 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			const result = await response.json();
 			//localStorage.setItem('sharedState', JSON.stringify(result));
 
-			function formatAUD(amount) {
+			// Currency formatter — uses the actual currency from the Guesty quote response.
+			function formatMoneySP(amount, currencyCode) {
 				return new Intl.NumberFormat('en', {
 					style: 'currency',
-					currency: 'AUD',
-					currencyDisplay: 'symbol',
+					currency: currencyCode || 'AUD',
 					minimumFractionDigits: 2,
-					maximumFractionDigits: 2
+					maximumFractionDigits: 2,
 				}).format(Math.round(amount * 100) / 100);
 			}
 
@@ -861,52 +843,84 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 				return diffDays;
 			}
 
-			if (result.data.status === 'valid') {
-				// Hide error
-				notifyBox.style.display = 'none';
-				bookingCostBox.style.display = 'block';
-				priceHeaderBooking.style.display = 'flex';
-				priceHeader.style.display = 'none';
-				bookingCalendar.style.display = 'none';
-				change_btn.style.display = 'block';
+		if (result.data.status === 'valid') {
+			notifyBox.style.display = 'none';
+			bookingCostBox.style.display = 'block';
+			priceHeaderBooking.style.display = 'flex';
+			priceHeader.style.display = 'none';
+			bookingCalendar.style.display = 'none';
+			change_btn.style.display = 'block';
 
-				const money = result.data.rates.ratePlans[0].money.money;
-				const totalPrice = formatAUD(money.subTotalPrice);
-				total_price.innerHTML = `${totalPrice}`;
-				const subtotalPrice = formatAUD(money.fareAccommodation);
-				subtotal_price.innerHTML = `${subtotalPrice}`;
-				const totalFees = formatAUD(money.totalFees);
-				total_fees.innerHTML = `${totalFees}`;
+			const ratePlanMoney = result.data.rates.ratePlans[0].money;  // outer money
+			const money         = ratePlanMoney.money;                   // inner money
+			const currency      = money.currency || 'AUD';
 
-				const booking_info = result.data.stay[0];
-				const checkInDateLocalized = formatDate(booking_info.checkInDateLocalized);
-				booking_checkInDates.innerHTML = `${checkInDateLocalized}`;
-				const checkOutDateLocalized = formatDate(booking_info.checkOutDateLocalized);
-				booking_checkOutDates.innerHTML = `${checkOutDateLocalized}`;
-				const guestsCount = booking_info.guestsCount;
-				booking_guests.innerHTML = `${guestsCount} ${guestsCount > 1 ? 'Guests' : 'Guest'}`;
-				const nights = calculateNights(booking_info.checkInDateLocalized, booking_info.checkOutDateLocalized);
-				booking_nights.innerHTML = `${nights} ${nights > 1 ? 'Nights' : 'Night'}`;
+			// Total (all-in price)
+			total_price.innerHTML = formatMoneySP(money.subTotalPrice, currency);
 
-				const list = document.querySelector('.collapseExample ul');
-				list.innerHTML = '';
+			// Booking meta grid
+			const booking_info           = result.data.stay[0];
+			booking_checkInDates.innerHTML  = formatDate(booking_info.checkInDateLocalized);
+			booking_checkOutDates.innerHTML = formatDate(booking_info.checkOutDateLocalized);
+			const guestsCount            = booking_info.guestsCount;
+			booking_guests.innerHTML     = `${guestsCount} ${guestsCount > 1 ? 'Guests' : 'Guest'}`;
+			const nights                 = calculateNights(booking_info.checkInDateLocalized, booking_info.checkOutDateLocalized);
+			booking_nights.innerHTML     = `${nights} ${nights > 1 ? 'Nights' : 'Night'}`;
 
-				if (Array.isArray(money.invoiceItems) && money.invoiceItems.length > 0) {
-					money.invoiceItems
-						.filter(item => item.type?.toUpperCase() !== 'ACCOMMODATION_FARE')
-						.forEach(item => {
-							list.insertAdjacentHTML(
-								'beforeend',
-								`<li>
-									${item.title}
-									<span>${formatAUD(item.amount)}</span>
-								</li>`
-							);
-						});
+			// Fee breakdown (same buckets as instant-booking; dual invoiceItems paths)
+			const feeListEl = document.getElementById('sp-fee-list');
+			if (feeListEl) {
+				// Try both API paths for invoiceItems (Guesty version differences)
+				const innerItems = Array.isArray(money.invoiceItems)         ? money.invoiceItems         : [];
+				const outerItems = Array.isArray(ratePlanMoney.invoiceItems) ? ratePlanMoney.invoiceItems : [];
+				const items      = outerItems.length >= innerItems.length && outerItems.length > 0
+					? outerItems : (innerItems.length > 0 ? innerItems : outerItems);
+				function isAccomSP(i)    { return (i.type||'').toUpperCase()==='ACCOMMODATION_FARE' || (i.normalType||'').toUpperCase()==='AF'; }
+				function isTaxSP(i)      { const t=(i.type||'').toUpperCase(); return t==='TAX'||t==='TAX_AMOUNT'||t.includes('TAX'); }
+				function isDiscountSP(i) { const t=(i.type||'').toUpperCase(); return t==='DISCOUNT'||t.includes('DISCOUNT')||parseFloat(i.amount||0)<0; }
+
+				const accomItems   = items.filter(i => isAccomSP(i));
+				const feeItems     = items.filter(i => !isAccomSP(i) && !isTaxSP(i) && !isDiscountSP(i) && parseFloat(i.amount||0) >= 0);
+				const taxItems     = items.filter(i => isTaxSP(i));
+				const discItems    = items.filter(i => isDiscountSP(i));
+
+				let html = '';
+
+				// Accommodation fare: £X/night × N nights
+				if (accomItems.length > 0) {
+					const accomTotal = accomItems.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+					const perNight   = nights > 0 ? accomTotal / nights : 0;
+					let label        = 'Accommodation fare';
+					if (nights > 0 && perNight > 0) {
+						label = `${formatMoneySP(perNight, currency)} &times; ${nights} night${nights !== 1 ? 's' : ''}`;
+					}
+					html += `<div class="sp-fee-row"><span>${label}</span><span>${formatMoneySP(accomTotal, currency)}</span></div>`;
 				}
 
-				btn.innerText = "BOOK NOW";
-				btn.onclick = () => window.location.href = bookingUrl;
+				// Additional fees: cleaning, resort, pet, parking, etc.
+				feeItems.forEach(function(item) {
+					const amt = parseFloat(item.amount || 0);
+					if (amt === 0) return;
+					html += `<div class="sp-fee-row"><span>${item.title || 'Fee'}</span><span>${formatMoneySP(amt, currency)}</span></div>`;
+				});
+
+				// Taxes
+				taxItems.forEach(function(item) {
+					const amt = parseFloat(item.amount || 0);
+					if (amt === 0) return;
+					html += `<div class="sp-fee-row sp-fee-row--tax"><span>${item.title || 'Tax'}</span><span>${formatMoneySP(amt, currency)}</span></div>`;
+				});
+
+				// Discounts / coupons
+				discItems.forEach(function(item) {
+					html += `<div class="sp-fee-row sp-fee-row--discount"><span>${item.title || 'Discount'}</span><span class="sp-discount-amount">${formatMoneySP(parseFloat(item.amount || 0), currency)}</span></div>`;
+				});
+
+				feeListEl.innerHTML = html;
+			}
+
+			btn.innerText = "BOOK NOW";
+			btn.onclick = () => window.location.href = bookingUrl;
 
 			} else {
 				// Get API error message (from Guesty) and make it guest-friendly.
@@ -965,13 +979,15 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		}
 	});
 
-	const toggleBtn = document.querySelector('.payment-list-detail-btn');
+	// Legacy collapse toggle — kept for safety in case old markup exists on other pages.
+	const toggleBtn  = document.querySelector('.payment-list-detail-btn');
 	const collapseBox = document.querySelector('.collapseExample');
-
-	toggleBtn.addEventListener('click', () => {
-		const isOpen = collapseBox.classList.toggle('open');
-		toggleBtn.classList.toggle('open', isOpen);
-	});
+	if (toggleBtn && collapseBox) {
+		toggleBtn.addEventListener('click', () => {
+			const isOpen = collapseBox.classList.toggle('open');
+			toggleBtn.classList.toggle('open', isOpen);
+		});
+	}
 
 	document.addEventListener("DOMContentLoaded", (event) => {
 		const bedroomEl = document.querySelector('.bedroomSwiper');
@@ -1954,6 +1970,49 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 
 	.guesty-booking-cost {
 		margin-top: 15px;
+	}
+
+	/* SP booking card fee rows */
+	.gbk-sp-fee-list {
+		border-top: 1px solid var(--Grey-Light, #C4C4C4);
+		padding-top: 12px;
+		padding-bottom: 4px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.sp-fee-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 12px;
+		color: var(--Black, #000);
+		font-size: 15px;
+		font-weight: 400;
+		line-height: 1.5;
+	}
+
+	.sp-fee-row span:first-child {
+		flex: 1;
+	}
+
+	.sp-fee-row span:last-child {
+		white-space: nowrap;
+		font-size: 16px;
+	}
+
+	.sp-fee-row--tax {
+		color: var(--Grey, #767676);
+		font-size: 14px;
+	}
+
+	.sp-fee-row--tax span:last-child {
+		font-size: 15px;
+	}
+
+	.sp-fee-row--discount .sp-discount-amount {
+		color: #059669;
 	}
 
 	.total-box {

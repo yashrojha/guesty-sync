@@ -1,9 +1,7 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-/* =====================================================================
-    1. Collect URL parameters
-===================================================================== */
+// URL params
 $check_in    = sanitize_text_field($_GET['check_in']   ?? '');
 $check_out   = sanitize_text_field($_GET['check_out']  ?? '');
 $guest_count = max(1, intval($_GET['guest']            ?? 1));
@@ -14,10 +12,7 @@ if (!$listing_id) {
     exit;
 }
 
-/* =====================================================================
-    2. Date format & logic validation — before any API call
-        Catches tampered / stale URLs immediately
-===================================================================== */
+// Validate dates before API calls
 $page_error = '';
 
 if (!$check_in || !$check_out) {
@@ -43,9 +38,7 @@ if (!$check_in || !$check_out) {
     }
 }
 
-/* =====================================================================
-    3. Look up the WordPress post by Guesty listing ID
-===================================================================== */
+// Resolve WP property from Guesty listing id
 $wp_posts = get_posts([
     'post_type'      => 'properties',
     'meta_key'       => 'guesty_id',
@@ -60,30 +53,28 @@ $property_type  = $wp_post ? get_post_meta($wp_post->ID, 'guesty_property_type',
 $property_image = $wp_post ? get_the_post_thumbnail_url($wp_post->ID, 'guesty_medium') : '';
 $property_url   = $wp_post ? get_permalink($wp_post->ID) : get_post_type_archive_link('properties');
 
-// Guesty stay rules (min/max nights) from synced post meta, used to humanise API errors.
+// Guesty min/max nights from post meta (for humanised API errors)
 $guesty_min_nights = $wp_post ? (int) get_post_meta($wp_post->ID, 'guesty_minNights', true) : 0;
 $guesty_max_nights = $wp_post ? (int) get_post_meta($wp_post->ID, 'guesty_maxNights', true) : 0;
 
-/* =====================================================================
-    4. Fetch Guesty quote — the live availability & pricing check
-        This is the canonical way to validate if the dates are truly
-        available: if the quote fails the property is not bookable for
-        those dates (blocked, min-night violation, unlisted, etc.)
-===================================================================== */
-$quote_data    = null;
-$money         = null;
-$invoice_items = [];
-$currency      = 'GBP';
-$total_price   = 0;
-$accom_fare    = 0;
-$total_fees    = 0;
-$quote_valid   = false;
-$quote_id      = '';
+// Guesty quote: live availability and pricing
+$quote_data     = null;
+$money          = null;
+$invoice_items  = [];
+$currency       = 'GBP';
+$total_price    = 0;
+$accom_fare     = 0;
+$total_fees     = 0;
+$total_taxes    = 0;
+$quote_valid    = false;
+$quote_id       = '';
 
-// Debug info — populated during the quote call, shown to admins
-$debug_http_code  = null;
-$debug_raw_body   = '';
-$debug_token_used = '';
+$nights = 0;
+$per_night_rate = 0;
+$accom_item = null;
+$fee_items = [];
+$tax_items = [];
+$discount_items = [];
 
 $token = guesty_get_token();
 
@@ -91,12 +82,7 @@ if (!$page_error) {
     if (!$token) {
         $page_error = 'The booking system is temporarily unavailable (authentication error). Please try again shortly.';
     } else {
-        $debug_token_used = substr($token, 0, 12) . '…';
-
-        // ── Calendar availability pre-check ──────────────────────────────────
-        // Verify every night in the range is actually free before calling the
-        // Quote API.  The quote endpoint is a pricing tool and can occasionally
-        // return "valid" for dates that are blocked in the Guesty calendar.
+        // Calendar pre-check: blocked nights can still get a "valid" quote
         $avail_check = guesty_check_availability($listing_id, $check_in, $check_out);
         if (!$avail_check['available']) {
             $page_error = $avail_check['reason'];
@@ -116,62 +102,146 @@ if (!$page_error) {
             'checkInDateLocalized'  => $check_in,
             'checkOutDateLocalized' => $check_out,
             'guestsCount'           => $guest_count,
-            'source'                => 'manual',
+            'source'                => 'Direct',
         ]),
         'timeout' => 25,
         'sslverify' => false,
     ]);
 
     if (is_wp_error($q_response)) {
-        $debug_raw_body = 'WP_Error: ' . $q_response->get_error_message();
-        $page_error     = 'Unable to verify availability right now (network error). Please refresh the page or try again in a moment.';
+        $page_error = 'Unable to verify availability right now (network error). Please refresh the page or try again in a moment.';
     } else {
-        $debug_http_code = wp_remote_retrieve_response_code($q_response);
-        $debug_raw_body  = wp_remote_retrieve_body($q_response);
-        $quote_data      = json_decode($debug_raw_body, true);
+        $http_code  = wp_remote_retrieve_response_code($q_response);
+        $quote_data = json_decode(wp_remote_retrieve_body($q_response), true);
 
         // Guesty returns 201 Created for POST /v1/quotes (not 200)
         if (
-            in_array($debug_http_code, [200, 201], true)
+            in_array($http_code, [200, 201], true)
             && is_array($quote_data)
             && !empty($quote_data['status'])
             && $quote_data['status'] === 'valid'
         ) {
-            $money         = $quote_data['rates']['ratePlans'][0]['money']['money'] ?? null;
-            $total_price   = $money['subTotalPrice']    ?? 0;
-            $accom_fare    = $money['fareAccommodation'] ?? 0;
-            $total_fees    = $money['totalFees']         ?? 0;
-            $currency      = $money['currency']          ?? 'GBP';
-            $invoice_items = $money['invoiceItems']      ?? [];
-            $quote_id      = $quote_data['_id']          ?? '';
-            $rate_plan_id  = $quote_data['rates']['ratePlans'][0]['ratePlan']['_id']
-                           ?? $quote_data['rates']['ratePlans'][0]['money']['rateId']
-                           ?? '';
-            $quote_valid   = true;
-        } else {
-            // guesty_log only accepts 2 args — serialize context into the message
-            $log_msg = 'HTTP ' . $debug_http_code
-                . ' | status=' . (is_array($quote_data) ? ($quote_data['status'] ?? 'n/a') : 'non-json')
-                . ' | body=' . substr($debug_raw_body, 0, 500);
-            guesty_log('quote_error', $log_msg);
+            // invoiceItems: prefer money.money vs money (whichever has more rows)
+            $rate_plan_money = $quote_data['rates']['ratePlans'][0]['money'] ?? [];
+            $money           = $rate_plan_money['money']          ?? null;
 
+            $total_price    = $money['subTotalPrice']    ?? 0;
+            $accom_fare     = $money['fareAccommodation'] ?? 0;
+            $total_fees     = $money['totalFees']         ?? 0;
+            $total_taxes    = $money['totalTaxes']        ?? 0;
+            $currency       = $money['currency']          ?? 'GBP';
+
+            $inner_items = $money['invoiceItems']           ?? [];
+            $outer_items = $rate_plan_money['invoiceItems'] ?? [];
+            if (count($outer_items) >= count($inner_items) && !empty($outer_items)) {
+                $invoice_items = $outer_items;
+            } else {
+                $invoice_items = !empty($inner_items) ? $inner_items : $outer_items;
+            }
+
+            $quote_id       = $quote_data['_id']          ?? '';
+            $rate_plan_id   = $quote_data['rates']['ratePlans'][0]['ratePlan']['_id']
+                            ?? $quote_data['rates']['ratePlans'][0]['money']['rateId']
+                            ?? '';
+            $inquiry_id     = $quote_data['rates']['ratePlans'][0]['inquiryId']
+                            ?? $quote_data['inquiryId']
+                            ?? $quote_id;
+            $quote_valid    = true;
+        } else {
             $api_msg = is_array($quote_data)
                 ? ($quote_data['error']['message'] ?? $quote_data['message'] ?? '')
                 : '';
 
-            // Make low-level Guesty error strings more readable for guests.
             $page_error = gbk_humanize_quote_error($api_msg, $guesty_min_nights, $guesty_max_nights)
                 ?: 'These dates are not available for this property. Please go back and choose different dates.';
         }
     }
 }
 
-/* =====================================================================
-    5. Fetch listing details from Guesty
-        — house rules, cancellation policy, and paymentProviderId
-        We only make this call when dates/quote are valid so we don't
-        waste an API call on an already-blocked request.
-===================================================================== */
+// Apply true opt-in upsell fees (helper returns [] for fully auto-applied accounts)
+if ($quote_valid && $inquiry_id && $token) {
+    $af_ids = guesty_get_applicable_fee_ids($token, $listing_id, $invoice_items);
+
+    if (!empty($af_ids)) {
+        $upsell_body = ['additionalFeeIds' => $af_ids];
+        if ($rate_plan_id) {
+            $upsell_body['ratePlanIds'] = [$rate_plan_id];
+        }
+
+        $upsell_response = wp_remote_post(
+            "https://open-api.guesty.com/v1/additional-fees/inquiries/{$inquiry_id}/upsells",
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'Content-Type'  => 'application/json',
+                    'Accept'        => 'application/json',
+                ],
+                'body'    => wp_json_encode($upsell_body),
+                'timeout' => 20,
+            ]
+        );
+
+        if (!is_wp_error($upsell_response) && wp_remote_retrieve_response_code($upsell_response) === 200) {
+            $upsell_data  = json_decode(wp_remote_retrieve_body($upsell_response), true);
+            $upd_rp_money = $upsell_data['rates']['ratePlans'][0]['money'] ?? [];
+            $upd_inner    = $upd_rp_money['money']['invoiceItems'] ?? [];
+            $upd_outer    = $upd_rp_money['invoiceItems']          ?? [];
+            $best_items   = count($upd_outer) >= count($upd_inner) && !empty($upd_outer)
+                ? $upd_outer
+                : $upd_inner;
+
+            if (!empty($best_items)) {
+                $rate_plan_money = $upd_rp_money;
+                $inner_money     = $upd_rp_money['money'] ?? [];
+                if (!empty($inner_money)) {
+                    $money = $inner_money;
+                }
+
+                $totals_source = !empty($inner_money) ? $inner_money : $upd_rp_money;
+                $total_price   = $totals_source['subTotalPrice']     ?? $total_price;
+                $accom_fare    = $totals_source['fareAccommodation'] ?? $accom_fare;
+                $total_fees    = $totals_source['totalFees']         ?? $total_fees;
+                $total_taxes   = $totals_source['totalTaxes']        ?? $total_taxes;
+                $invoice_items = $best_items;
+            }
+        }
+    }
+}
+
+// Categorise invoiceItems for UI (runs after upsells)
+if ($quote_valid) {
+    try {
+        $nights = (int)(new DateTime($check_out))->diff(new DateTime($check_in))->days;
+    } catch (Exception $e) {
+        $nights = 0;
+    }
+    $per_night_rate = ($nights > 0 && $accom_fare > 0)
+        ? round($accom_fare / $nights, 2)
+        : 0;
+
+    foreach ($invoice_items as $item) {
+        $type       = strtoupper($item['type']       ?? '');
+        $normalType = strtoupper($item['normalType'] ?? '');
+        $amount     = (float)($item['amount'] ?? 0);
+
+        if ($type === 'ACCOMMODATION_FARE' || $normalType === 'AF') {
+            $accom_item = $item;
+        } elseif (
+            $type === 'TAX'
+            || $type === 'TAX_AMOUNT'
+            || strpos($type, 'TAX') !== false
+            || $normalType === 'TAX'
+        ) {
+            $tax_items[] = $item;
+        } elseif ($type === 'DISCOUNT' || strpos($type, 'DISCOUNT') !== false || $amount < 0) {
+            $discount_items[] = $item;
+        } else {
+            $fee_items[] = $item;
+        }
+    }
+}
+
+// Listing details (rules, cancellation, paymentProviderId)
 $property_api        = null;
 $smoking_allowed     = false;
 $pets_allowed        = false;
@@ -204,18 +274,12 @@ if ($property_api) {
     $payment_provider_id = $property_api['paymentProviderId'] ?? '';
 }
 
-/* =====================================================================
-    6. Auto-detect payment provider ID — 3-tier fallback
-        Tier 1: Admin manual override (Guesty Sync > Settings > Booking)
-        Tier 2: paymentProviderId on the listing (fetched above)
-        Tier 3: Account-level default  GET /v1/payment-providers/default
-===================================================================== */
+// Payment provider: admin option > listing > GET /payment-providers/default
 $admin_provider = get_option('guesty_stripe_payment_provider_id', '');
 
 if ($admin_provider) {
-    $payment_provider_id = $admin_provider;   // Tier 1 always wins
+    $payment_provider_id = $admin_provider;
 } elseif (!$payment_provider_id && $token && !$page_error) {
-    // Tier 3 – account default
     $pp_resp = wp_remote_get('https://open-api.guesty.com/v1/payment-providers/default', [
         'headers' => [
             'Authorization' => 'Bearer ' . $token,
@@ -226,14 +290,11 @@ if ($admin_provider) {
 
     if (!is_wp_error($pp_resp) && wp_remote_retrieve_response_code($pp_resp) === 200) {
         $pp_data             = json_decode(wp_remote_retrieve_body($pp_resp), true);
-        // Response may be the object directly or nested under 'data'
         $payment_provider_id = $pp_data['_id'] ?? ($pp_data['data']['_id'] ?? '');
     }
 }
 
-/* =====================================================================
-    7. Helper functions
-===================================================================== */
+// Page-local helpers
 function gbk_cancellation_text($code)
 {
     $map = [
@@ -251,13 +312,7 @@ function gbk_cancellation_text($code)
     return $map[$code] ?? 'Our cancellation policy applies. Please contact us before booking for full details.';
 }
 
-/**
- * Turn low-level Guesty quote error messages into guest-friendly copy.
- *
- * Example raw errors:
- *   - "terms not applicable: minNights"
- *   - "terms not applicable: maxNights"
- */
+// Map Guesty quote errors to guest-facing text ($min_nights / $max_nights for min/max hints).
 function gbk_humanize_quote_error($api_msg, $min_nights = 0, $max_nights = 0)
 {
     $msg = trim((string) $api_msg);
@@ -337,10 +392,7 @@ get_header();
         <h1 class="booking-page-title">Enjoy and book with confidence.</h1>
 
         <?php if ($page_error) : ?>
-            <!-- =====================================================
-            AVAILABILITY / DATE ERROR SCREEN
-            Shown when dates are invalid OR listing is unavailable
-        ====================================================== -->
+            <!-- Error: invalid dates or unavailable -->
             <div class="gbk-error-screen">
                 <div class="gbk-error-icon">
                     <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -369,9 +421,7 @@ get_header();
             </div>
 
         <?php else : ?>
-            <!-- =====================================================
-            BOOKING FORM (dates validated & available)
-        ====================================================== -->
+            <!-- Booking flow (quote valid) -->
 
             <div class="booking-alert-banner">
                 <span class="alert-icon">
@@ -386,12 +436,10 @@ get_header();
 
             <div class="booking-content-layout">
 
-                <!-- =====================================================
-                LEFT COLUMN — 3-step booking form
-            ====================================================== -->
+                <!-- Left: steps -->
                 <div class="booking-steps-column">
 
-                    <!-- ─── STEP 1: Guest details ─── -->
+                    <!-- Step 1: guest details -->
                     <div class="booking-step" id="gbk-step-1">
                         <div class="step-header">
                             <span class="step-number active" id="gbk-num-1"><span>1</span></span>
@@ -433,7 +481,7 @@ get_header();
                         </div>
                     </div>
 
-                    <!-- ─── STEP 2: Rules & Policies ─── -->
+                    <!-- Step 2: rules & policies -->
                     <div class="booking-step locked" id="gbk-step-2">
                         <div class="step-header">
                             <span class="step-number" id="gbk-num-2"><span>2</span></span>
@@ -486,7 +534,7 @@ get_header();
                         </div>
                     </div>
 
-                    <!-- ─── STEP 3: Payment ─── -->
+                    <!-- Step 3: payment -->
                     <div class="booking-step locked" id="gbk-step-3">
                         <div class="step-header">
                             <span class="step-number" id="gbk-num-3"><span>3</span></span>
@@ -511,7 +559,7 @@ get_header();
                         </div>
                     </div>
 
-                    <!-- ─── SUCCESS ─── -->
+                    <!-- Success -->
                     <div id="gbk-booking-success" style="display:none;">
                         <div class="gbk-success-icon">✓</div>
                         <h2>Booking Confirmed!</h2>
@@ -524,9 +572,7 @@ get_header();
 
                 </div><!-- /booking-steps-column -->
 
-                <!-- =====================================================
-                RIGHT COLUMN — Booking summary
-            ====================================================== -->
+                <!-- Right: summary -->
                 <aside class="booking-summary-column">
                     <div class="gbk-summary-card">
 
@@ -625,16 +671,59 @@ get_header();
                                     <strong id="gbk-total-price"><?php echo esc_html($formatted_total); ?></strong>
                                 </div>
                                 <div class="gbk-price-subtext">
-                                    <span>Includes taxes and fees</span>
-                                    <button type="button" id="gbk-view-details-btn" class="gbk-view-details-link">View details</button>
+                                    <span>Includes taxes &amp; fees</span>
+                                    <button type="button" id="gbk-view-details-btn" class="gbk-view-details-link">Hide details</button>
                                 </div>
-                                <div class="gbk-price-details-box" id="gbk-price-details">
-                                    <?php foreach ($invoice_items as $item) : ?>
+
+                                <!-- Fee breakdown — visible by default so guests see every charge -->
+                                <div class="gbk-price-details-box" id="gbk-price-details" style="display:flex;">
+
+                                    <!-- Accommodation fare row: £X/night × N nights -->
+                                    <?php if ($accom_fare > 0) : ?>
                                         <div class="gbk-fee-row">
-                                            <span><?php echo esc_html($item['title'] ?? ''); ?></span>
-                                            <span><?php echo esc_html($currency_symbol . gbk_format_money($item['amount'])); ?></span>
+                                            <span class="gbk-fee-label">
+                                                <?php if ($nights > 0 && $per_night_rate > 0) : ?>
+                                                    <?php echo esc_html($currency_symbol . gbk_format_money($per_night_rate)); ?> &times; <?php echo esc_html($nights); ?> night<?php echo $nights !== 1 ? 's' : ''; ?>
+                                                <?php else : ?>
+                                                    Accommodation fare
+                                                <?php endif; ?>
+                                            </span>
+                                            <span><?php echo esc_html($currency_symbol . gbk_format_money($accom_fare)); ?></span>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <!-- Additional fees: cleaning, resort, pet, parking, etc. -->
+                                    <?php foreach ($fee_items as $item) :
+                                        $fee_amt = (float)($item['amount'] ?? 0);
+                                        if ($fee_amt == 0) continue;
+                                    ?>
+                                        <div class="gbk-fee-row">
+                                            <span class="gbk-fee-label"><?php echo esc_html($item['title'] ?? 'Fee'); ?></span>
+                                            <span><?php echo esc_html($currency_symbol . gbk_format_money($fee_amt)); ?></span>
                                         </div>
                                     <?php endforeach; ?>
+
+                                    <!-- Taxes -->
+                                    <?php foreach ($tax_items as $item) :
+                                        $tax_amt = (float)($item['amount'] ?? 0);
+                                        if ($tax_amt == 0) continue;
+                                    ?>
+                                        <div class="gbk-fee-row gbk-fee-row--tax">
+                                            <span class="gbk-fee-label"><?php echo esc_html($item['title'] ?? 'Tax'); ?></span>
+                                            <span><?php echo esc_html($currency_symbol . gbk_format_money($tax_amt)); ?></span>
+                                        </div>
+                                    <?php endforeach; ?>
+
+                                    <!-- Discounts / coupons -->
+                                    <?php foreach ($discount_items as $item) :
+                                        $disc_amt = (float)($item['amount'] ?? 0);
+                                    ?>
+                                        <div class="gbk-fee-row gbk-fee-row--discount">
+                                            <span class="gbk-fee-label"><?php echo esc_html($item['title'] ?? 'Discount'); ?></span>
+                                            <span class="gbk-discount-amount"><?php echo esc_html($currency_symbol . gbk_format_money($disc_amt)); ?></span>
+                                        </div>
+                                    <?php endforeach; ?>
+
                                     <div class="gbk-fee-row-total">
                                         <span>Total</span>
                                         <span><?php echo esc_html($formatted_total); ?></span>
@@ -673,7 +762,7 @@ get_header();
         (function() {
             'use strict';
 
-            /* ── Booking data from PHP ── */
+            // GBK from PHP
             // Exposed on window so you can inspect in the browser console: window.GBK
             const GBK = window.GBK = {
                 ajaxUrl: <?php echo json_encode(admin_url('admin-ajax.php')); ?>,
@@ -685,6 +774,8 @@ get_header();
                 currency: <?php echo json_encode($currency); ?>,
                 totalPrice: <?php echo json_encode((float) $total_price); ?>,
                 invoiceItems: <?php echo json_encode(array_values($invoice_items)); ?>,
+                nights: <?php echo json_encode($nights); ?>,
+                perNight: <?php echo json_encode((float) $per_night_rate); ?>,
                 quoteId: <?php echo json_encode($quote_id); ?>,
                 ratePlanId: <?php echo json_encode($rate_plan_id ?? ''); ?>,
                 paymentProviderId: <?php echo json_encode($payment_provider_id); ?>,
@@ -698,7 +789,7 @@ get_header();
             let currentStep = 1;
             let guestyPayLoaded = false;
 
-            /* ── Helpers ── */
+            // Helpers
             function formatMoney(amount, currency) {
                 return new Intl.NumberFormat('en', {
                     style: 'currency',
@@ -706,6 +797,51 @@ get_header();
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                 }).format(parseFloat(amount) || 0);
+            }
+
+            // Build #gbk-price-details HTML from invoiceItems (same buckets as PHP); used after coupon.
+            function buildPriceDetails(items, currency, total, nights, perNight) {
+                // Type strings vary (CLEANING_FEE, TAX_AMOUNT, etc.) — match by keyword where needed.
+                function isAccom(i)    { return (i.type||'').toUpperCase()==='ACCOMMODATION_FARE' || (i.normalType||'').toUpperCase()==='AF'; }
+                function isTax(i)      { const t=(i.type||'').toUpperCase(); return t==='TAX'||t==='TAX_AMOUNT'||t.includes('TAX'); }
+                function isDiscount(i) { const t=(i.type||'').toUpperCase(); return t==='DISCOUNT'||t.includes('DISCOUNT')||parseFloat(i.amount||0)<0; }
+
+                const accomItems    = items.filter(i => isAccom(i));
+                const feeItems      = items.filter(i => !isAccom(i) && !isTax(i) && !isDiscount(i) && parseFloat(i.amount||0) >= 0);
+                const taxItems      = items.filter(i => isTax(i));
+                const discountItems = items.filter(i => isDiscount(i));
+
+                let html = '';
+
+                if (accomItems.length > 0) {
+                    const accomTotal = accomItems.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+                    let label = 'Accommodation fare';
+                    if (nights > 0 && perNight > 0) {
+                        label = `${formatMoney(perNight, currency)} &times; ${nights} night${nights !== 1 ? 's' : ''}`;
+                    }
+                    html += `<div class="gbk-fee-row"><span class="gbk-fee-label">${label}</span><span>${formatMoney(accomTotal, currency)}</span></div>`;
+                }
+
+                feeItems.forEach(function(item) {
+                    const amt = parseFloat(item.amount || 0);
+                    if (amt === 0) return;
+                    html += `<div class="gbk-fee-row"><span class="gbk-fee-label">${item.title || 'Fee'}</span><span>${formatMoney(amt, currency)}</span></div>`;
+                });
+
+                taxItems.forEach(function(item) {
+                    const amt = parseFloat(item.amount || 0);
+                    if (amt === 0) return;
+                    html += `<div class="gbk-fee-row gbk-fee-row--tax"><span class="gbk-fee-label">${item.title || 'Tax'}</span><span>${formatMoney(amt, currency)}</span></div>`;
+                });
+
+                discountItems.forEach(function(item) {
+                    const amt = parseFloat(item.amount || 0);
+                    html += `<div class="gbk-fee-row gbk-fee-row--discount"><span class="gbk-fee-label">${item.title || 'Discount'}</span><span class="gbk-discount-amount">${formatMoney(amt, currency)}</span></div>`;
+                });
+
+                html += `<div class="gbk-fee-row-total"><span>Total</span><span>${formatMoney(total, currency)}</span></div>`;
+
+                return html;
             }
 
             function showSpinner(btn) {
@@ -732,7 +868,7 @@ get_header();
                 if (el) el.style.display = 'none';
             }
 
-            /* ── Step navigation ── */
+            // Step navigation
             function activateStep(step) {
                 const prevEl = document.getElementById('gbk-step-' + currentStep);
                 if (prevEl && step !== currentStep) {
@@ -781,7 +917,7 @@ get_header();
                 });
             }
 
-            /* ── STEP 1: Guest details form ── */
+            // Step 1: guest form
             document.getElementById('gbk-guest-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 hideError('gbk-error-1');
@@ -915,7 +1051,7 @@ get_header();
                 initGuestyPayForm();
             });
 
-            /* ── STEP 3: GuestyPay payment form ── */
+            // Step 3: GuestyPay
             async function initGuestyPayForm() {
                 if (!GBK.paymentProviderId || guestyPayLoaded) return;
 
@@ -1046,7 +1182,7 @@ get_header();
                 });
             }
 
-            /* ── Coupon ── */
+            // Coupon
             document.getElementById('gbk-coupon-btn').addEventListener('click', async function() {
                 const coupon = document.getElementById('gbk-coupon-input').value.trim();
                 const msgEl = document.getElementById('gbk-coupon-msg');
@@ -1117,20 +1253,27 @@ get_header();
                             couponName = appliedCoupons[appliedCoupons.length - 1].name || coupon;
                         }
 
-                        GBK.totalPrice = newTotal;
+                        GBK.totalPrice   = newTotal;
                         GBK.invoiceItems = newItems;
-                        GBK.quoteId = data.data._id || GBK.quoteId;
+                        GBK.quoteId      = data.data._id || GBK.quoteId;
+
+                        // Recalculate per-night rate if accommodation fare changed
+                        const newAccomItems = newItems.filter(i => (i.type || '').toUpperCase() === 'ACCOMMODATION_FARE');
+                        if (newAccomItems.length > 0 && GBK.nights > 0) {
+                            const newAccomTotal = newAccomItems.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+                            GBK.perNight = GBK.nights > 0 ? newAccomTotal / GBK.nights : 0;
+                        }
 
                         document.getElementById('gbk-total-price').textContent = formatMoney(newTotal, GBK.currency);
 
                         const box = document.getElementById('gbk-price-details');
                         if (box) {
-                            box.innerHTML =
-                                newItems.map(item =>
-                                    `<div class="gbk-fee-row"><span>${item.title}</span><span>${formatMoney(item.amount, GBK.currency)}</span></div>`
-                                ).join('') +
-                                `<div class="gbk-fee-row-total"><span>Total</span><span>${formatMoney(newTotal, GBK.currency)}</span></div>`;
+                            box.innerHTML = buildPriceDetails(newItems, GBK.currency, newTotal, GBK.nights, GBK.perNight);
+                            box.style.display = 'flex';
                         }
+
+                        const vBtn = document.getElementById('gbk-view-details-btn');
+                        if (vBtn) vBtn.textContent = 'Hide details';
 
                         // Show success message with discount amount
                         if (discountAmount > 0) {
@@ -1154,12 +1297,14 @@ get_header();
                 }
             });
 
-            /* ── View / hide price details ── */
-            const viewBtn = document.getElementById('gbk-view-details-btn');
+            // Price details toggle
+            // Details box starts expanded (style="display:flex;" set in PHP).
+            // Button label starts as "Hide details" to match that state.
+            const viewBtn    = document.getElementById('gbk-view-details-btn');
             const detailsBox = document.getElementById('gbk-price-details');
             if (viewBtn && detailsBox) {
                 viewBtn.addEventListener('click', function() {
-                    const open = detailsBox.style.display === 'flex';
+                    const open = detailsBox.style.display !== 'none';
                     detailsBox.style.display = open ? 'none' : 'flex';
                     viewBtn.textContent = open ? 'View details' : 'Hide details';
                 });

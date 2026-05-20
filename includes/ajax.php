@@ -2,8 +2,75 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * AJAX Test Connection
+ * Collect the IDs of true "upsell-type" additional fees only.
+ *
+ * Auto-applied fees (isAutomated: true, e.g. Credit Surcharge, Booking Fee) are
+ * applied by Guesty at quote-creation time when source/channel matches their
+ * automationSources / automationPlatforms — those MUST NOT be sent to the
+ * /additional-fees/inquiries/{id}/upsells endpoint or Guesty replies with:
+ *   "Some additional fees are not upsell fees" (VALIDATION_ERROR).
+ *
+ * Steps:
+ *   1. GET /additional-fees/listing/{id}  — listing-level overrides
+ *   2. GET /additional-fees/account       — account-wide fees
+ *   Merge (listing wins on same _id), keep only fees that are:
+ *     - enabled on the bookingEngine channel, AND
+ *     - NOT auto-applied (isAutomated falsy) — these are true opt-in upsells.
+ *   Then exclude anything already on the invoice.
  */
+function guesty_get_applicable_fee_ids(string $token, string $listing_id, array $existing_invoice_items): array {
+    $headers = ['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json'];
+
+    $normalise = function ($raw) {
+        if (!is_array($raw)) return [];
+        $list = isset($raw['results']) && is_array($raw['results']) ? $raw['results'] : $raw;
+        $map  = [];
+        foreach ($list as $f) {
+            if (!empty($f['_id'])) $map[$f['_id']] = $f;
+        }
+        return $map;
+    };
+
+    $listing_fees = [];
+    $r = wp_remote_get("https://open-api.guesty.com/v1/additional-fees/listing/{$listing_id}", ['headers' => $headers, 'timeout' => 12]);
+    if (!is_wp_error($r) && wp_remote_retrieve_response_code($r) === 200) {
+        $listing_fees = $normalise(json_decode(wp_remote_retrieve_body($r), true));
+    }
+
+    $account_fees = [];
+    $r = wp_remote_get('https://open-api.guesty.com/v1/additional-fees/account', ['headers' => $headers, 'timeout' => 12]);
+    if (!is_wp_error($r) && wp_remote_retrieve_response_code($r) === 200) {
+        $account_fees = $normalise(json_decode(wp_remote_retrieve_body($r), true));
+    }
+
+    $all_fees = array_merge($account_fees, $listing_fees);
+
+    $applicable = array_filter($all_fees, function ($fee) {
+        if (!empty($fee['isAutomated'])) {
+            return false;
+        }
+        foreach ($fee['channelConfigurations'] ?? [] as $ch) {
+            if (($ch['channel'] ?? '') === 'bookingEngine' && !empty($ch['isEnabled'])) {
+                return true;
+            }
+        }
+        return false;
+    });
+
+    $existing_ids  = array_column($existing_invoice_items, '_id');
+    $existing_refs = array_column($existing_invoice_items, 'refId');
+
+    $ids = [];
+    foreach ($applicable as $fee) {
+        $fid = $fee['_id'];
+        if (!in_array($fid, $existing_ids, true) && !in_array($fid, $existing_refs, true)) {
+            $ids[] = $fid;
+        }
+    }
+
+    return $ids;
+}
+
 add_action('wp_ajax_guesty_test_connection', function () {
 
     if (!current_user_can('manage_options')) {
@@ -19,9 +86,6 @@ add_action('wp_ajax_guesty_test_connection', function () {
     }
 });
 
-/**
- * AJAX Test Be Connection
- */
 add_action('wp_ajax_guesty_be_test_connection', function () {
 
     if (!current_user_can('manage_options')) {
@@ -37,9 +101,6 @@ add_action('wp_ajax_guesty_be_test_connection', function () {
     }
 });
 
-/**
- * Trending Region auto save
- */
 add_action('wp_ajax_guesty_save_trending_regions', function () {
     if (!current_user_can('manage_options')) {
         wp_die();
@@ -53,9 +114,6 @@ add_action('wp_ajax_guesty_save_trending_regions', function () {
     wp_die();
 });
 
-/**
- * Featured Properties auto save
- */
 add_action('wp_ajax_guesty_save_featured_properties', function () {
     if (!current_user_can('manage_options')) {
         wp_send_json_error();
@@ -67,27 +125,20 @@ add_action('wp_ajax_guesty_save_featured_properties', function () {
     wp_send_json_success();
 });
 
-/**
- * Manual Sync All Properties
- */
-add_action('wp_ajax_guesty_trigger_manual_sync', function() {
+add_action('wp_ajax_guesty_trigger_manual_sync', function () {
     check_ajax_referer('guesty_sync_nonce', 'nonce');
 
     if (get_transient('guesty_sync_lock')) {
 		guesty_log('warning', 'Sync already running, skipped');
         wp_send_json_error(['message' => 'Sync already running!']);
     }
-	
-    // Start queue in background
+
     wp_schedule_single_event(time(), 'guesty_all_sync_start', [false]);
 
     wp_send_json_success(['message' => 'Manual background sync queued.']);
 });
 
-/**
- * Manual Sync Single Property
- */
-add_action('wp_ajax_guesty_trigger_single_sync', function() {
+add_action('wp_ajax_guesty_trigger_single_sync', function () {
     check_ajax_referer('guesty_sync_nonce', 'nonce');
 
     $pid = sanitize_text_field($_POST['pid'] ?? '');
@@ -98,24 +149,16 @@ add_action('wp_ajax_guesty_trigger_single_sync', function() {
         wp_send_json_error(['message' => 'Sync already running!']);
     }
 
-    // ✅ Schedule the single sync in the background
-    // We pass the Property ID as an argument to the cron hook
     wp_schedule_single_event(time(), 'guesty_single_sync_event', [$pid]);
 
     wp_send_json_success(['message' => "Background sync for $pid started!"]);
 });
 
-/**
- * AJAX handler to return current sync status
- */
-add_action('wp_ajax_guesty_get_sync_status', function() {
+add_action('wp_ajax_guesty_get_sync_status', function () {
     check_ajax_referer('guesty_sync_nonce', 'nonce');
     wp_send_json_success(guesty_get_sync_ui());
 });
 
-/* =========================
-   IMAGE DOWNLOAD
-========================= */
 add_filter('wp_image_editors', function () {
     return ['WP_Image_Editor_GD'];
 });
@@ -127,7 +170,6 @@ function guesty_download_image_fast($url, $post_id) {
     $filename = wp_unique_filename($upload_dir['path'], $path_info['basename']);
     $filepath = $upload_dir['path'] . '/' . $filename;
 
-    // 1. Fast Download via cURL
     $ch = curl_init($url);
     $fp = fopen($filepath, 'wb');
     curl_setopt_array($ch, [
@@ -142,16 +184,13 @@ function guesty_download_image_fast($url, $post_id) {
 
     if (!file_exists($filepath) || filesize($filepath) < 100) return 0;
 
-    // 2. RESIZE & OPTIMIZE (1800px Width, Auto Height, 80% Quality)
     $editor = wp_get_image_editor($filepath);
     if (!is_wp_error($editor)) {
-        $editor->set_quality(80); // Reduce file size significantly
-        // width: 1800, height: null (auto), crop: false
-        $editor->resize(1800, null, false); 
+        $editor->set_quality(80);
+        $editor->resize(1800, null, false);
         $editor->save($filepath);
     }
 
-    // 3. Register in Media Library
     $wp_filetype = wp_check_filetype($filename, null);
     $attachment = [
         'post_mime_type' => $wp_filetype['type'],
@@ -164,18 +203,16 @@ function guesty_download_image_fast($url, $post_id) {
 
     if (!is_wp_error($attach_id)) {
         require_once ABSPATH . 'wp-admin/includes/image.php';
-        
-        // ✅ Change: Allow thumbnail, guesty_medium, and guesty_large size
-		add_filter('intermediate_image_sizes_advanced', function($sizes) {
-			$allowed_sizes = ['thumbnail', 'guesty_medium', 'guesty_large'];
-			return array_intersect_key($sizes, array_flip($allowed_sizes));
-		});
-        
+
+        add_filter('intermediate_image_sizes_advanced', function ($sizes) {
+            $allowed_sizes = ['thumbnail', 'guesty_medium', 'guesty_large'];
+            return array_intersect_key($sizes, array_flip($allowed_sizes));
+        });
+
         $attach_data = wp_generate_attachment_metadata($attach_id, $filepath);
         wp_update_attachment_metadata($attach_id, $attach_data);
-        
-        // Important: Clean up the filter so it doesn't affect other uploads
-		remove_all_filters('intermediate_image_sizes_advanced');
+
+        remove_all_filters('intermediate_image_sizes_advanced');
 
         update_post_meta($attach_id, 'guesty_hash', md5($url));
         return (int) $attach_id;
@@ -184,21 +221,14 @@ function guesty_download_image_fast($url, $post_id) {
     return 0;
 }
 
-/**
- * Only run on the frontend, main query, and for properties archive/search
- */
 add_action('pre_get_posts', 'guesty_archive_filter');
 function guesty_archive_filter($query) {
     if (!is_admin() && $query->is_main_query() && (is_post_type_archive('properties') || is_tax() || is_search())) {
-        
-		// 1. PROPERTY AVAILABILITY CHECK
         if (isset($_GET['checkIn']) && !empty($_GET['checkIn']) && isset($_GET['checkOut']) && !empty($_GET['checkOut'])) {
             $check_in = sanitize_text_field($_GET['checkIn']);
             $check_out = sanitize_text_field($_GET['checkOut']);
-			$city = isset($_GET['city']) ? sanitize_text_field($_GET['city']) : '';
 			$guests = isset($_GET['minOccupancy']) ? intval($_GET['minOccupancy']) : 1;
 
-            // This replaces the "AJAX" call logic
             $available_ids = get_available_ids_from_be($check_in, $check_out, $guests);
 			
             if (!empty($available_ids)) {
@@ -210,7 +240,6 @@ function guesty_archive_filter($query) {
 		
 		$meta_query = array('relation' => 'AND');
 
-        // Check for 'city' in the URL — supports single value (?city=Bilinga) or array (?city[]=Bilinga&city[]=Burleigh)
         if (isset($_GET['city']) && !empty($_GET['city'])) {
             $raw_cities = $_GET['city'];
             if (!is_array($raw_cities)) {
@@ -235,7 +264,6 @@ function guesty_archive_filter($query) {
             }
         }
 
-        // Check for 'minOccupancy' from your form
         if (isset($_GET['minOccupancy']) && !empty($_GET['minOccupancy'])) {
             $meta_query[] = array(
                 'key'     => 'guesty_accommodates',
@@ -249,7 +277,6 @@ function guesty_archive_filter($query) {
             $query->set('meta_query', $meta_query);
         }
 
-        // Order & pagination for properties archive
         if (is_post_type_archive('properties')) {
             $query->set('orderby', 'title');
             $query->set('order', 'ASC');
@@ -258,9 +285,6 @@ function guesty_archive_filter($query) {
     }
 }
 
-/**
- * Map Booking Engine availability to WordPress post IDs for the given dates
- */
 function get_available_ids_from_be($check_in, $check_out, $guests = 1) {
     $token = guesty_be_get_token();
 	if ( ! $token ) {
@@ -283,7 +307,7 @@ function get_available_ids_from_be($check_in, $check_out, $guests = 1) {
             'Accept'        => 'application/json',
         ),
         'timeout'   => 25,
-        'sslverify' => false // Keep false for localhost
+        'sslverify' => false,
     ));
 
     if (is_wp_error($response)) {
@@ -293,26 +317,17 @@ function get_available_ids_from_be($check_in, $check_out, $guests = 1) {
 
     $body = json_decode(wp_remote_retrieve_body($response), true);
 
-    // DEBUG: Uncomment the line below to see the actual API response in your error log
-    // error_log('Guesty Response: ' . print_r($body, true));
-
-    // Some versions of the API return the array directly, others use a 'results' key
     $listings = isset($body['results']) ? $body['results'] : $body;
 
     if (!empty($listings) && is_array($listings)) {
-        // Extract the Guesty IDs (the 24-char strings)
         $available_guesty_ids = array_column($listings, '_id');
-        
-        // Pass these to your mapping function
+
         return get_wp_ids_from_guesty_ids($available_guesty_ids);
     }
 
     return array(0); 
 }
 
-/**
- * AJAX handler to return BlockedDates in Single property
- */
 add_action('wp_ajax_get_blocked_dates', 'ajax_get_guesty_dates');
 add_action('wp_ajax_nopriv_get_blocked_dates', 'ajax_get_guesty_dates');
 function ajax_get_guesty_dates() {
@@ -332,15 +347,13 @@ function get_guesty_booking_blocked_dates($listing_id) {
     if (false === $blocked_dates) {
         $token = guesty_get_token();
         if (!$token) {
-			guesty_log('Guesty Error', 'Token missing');
+            guesty_log('Guesty Error', 'Token missing');
             return [];
         }
 
-        // 1. Fixed the assignment and character issue
         $from = date('Y-m-d');
         $to = date('Y-m-d', strtotime('+2 year'));
 
-        // 2. Fetch Calendar
         $calendar_url = "https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/{$listing_id}?startDate={$from}&endDate={$to}";
         $cal_response = wp_remote_get($calendar_url, [
             'headers' => [
@@ -350,7 +363,6 @@ function get_guesty_booking_blocked_dates($listing_id) {
             'timeout' => 30
         ]);
 
-        // 3. Check for WordPress errors (like connection timeouts)
         if (is_wp_error($cal_response)) {
             guesty_log('Guesty', 'Guesty API Connection Error: ' . $cal_response->get_error_message());
             return [];
@@ -361,10 +373,8 @@ function get_guesty_booking_blocked_dates($listing_id) {
 		
         $blocked_dates = [];
 
-        // 4. Ensure we actually got an array back
-		if (isset($response->status) && $response->status === 200 && isset($response->data->days) && is_array($response->data->days)) {
+        if (isset($response->status) && $response->status === 200 && isset($response->data->days) && is_array($response->data->days)) {
             foreach ($response->data->days as $day) {
-                // Logic: Block if status is NOT available OR if CTA is true
                 $isUnavailable = (isset($day->status) && $day->status !== 'available');
                 $isClosedToArrival = (isset($day->cta) && $day->cta === true);
 
@@ -377,19 +387,12 @@ function get_guesty_booking_blocked_dates($listing_id) {
         }
         set_transient($cache_key, $blocked_dates, HOUR_IN_SECONDS);
     }
-	delete_transient('guesty_calendar_' . $listing_id);
+
     return $blocked_dates;
 }
 
-// AVAILABILITY CHECK
-
-/**
- * AJAX handler: check if a listing is available for a date range.
- * Uses the Calendar API — more accurate than the quote endpoint.
- * Returns wp_send_json_success(['available'=>true]) or wp_send_json_error('reason').
- */
-add_action( 'wp_ajax_guesty_check_availability',        'guesty_check_availability_handler' );
-add_action( 'wp_ajax_nopriv_guesty_check_availability', 'guesty_check_availability_handler' );
+add_action('wp_ajax_guesty_check_availability', 'guesty_check_availability_handler');
+add_action('wp_ajax_nopriv_guesty_check_availability', 'guesty_check_availability_handler');
 function guesty_check_availability_handler() {
     $listing_id = sanitize_text_field( $_POST['listing_id'] ?? '' );
     $check_in   = sanitize_text_field( $_POST['check_in']   ?? '' );
@@ -419,11 +422,6 @@ function guesty_check_availability_handler() {
     }
 }
 
-// INSTANT BOOKING HANDLERS
-
-/**
- * Create or update a Guesty guest profile
- */
 add_action('wp_ajax_guesty_create_booking_guest', 'guesty_create_booking_guest_handler');
 add_action('wp_ajax_nopriv_guesty_create_booking_guest', 'guesty_create_booking_guest_handler');
 function guesty_create_booking_guest_handler() {
@@ -472,15 +470,6 @@ function guesty_create_booking_guest_handler() {
     }
 }
 
-/**
- * Create a Guesty reservation and attach a GuestyPay payment method.
- *
- * Flow:
- *   1. Accept quoteId from the frontend (locked-in pricing from page load)
- *   2. Create reservation — include quoteId in body so Guesty locks the price
- *   3. Resolve payment provider (frontend → admin setting → listing → account default)
- *   4. Attach GuestyPay token (_id) to the guest via POST /v1/guests/{id}/payment-methods
- */
 add_action('wp_ajax_guesty_create_booking_reservation', 'guesty_create_booking_reservation_handler');
 add_action('wp_ajax_nopriv_guesty_create_booking_reservation', 'guesty_create_booking_reservation_handler');
 function guesty_create_booking_reservation_handler() {
@@ -509,15 +498,7 @@ function guesty_create_booking_reservation_handler() {
         wp_send_json_error('Authentication failed. Please try again.');
     }
 
-    // ── Step 1: Create reservation ────────────────────────────────────────
-    // Two endpoints exist:
-    //   POST /v1/reservations-v3/quote  — when we have a quoteId (locks price + coupon)
-    //   POST /v1/reservations-v3        — quick booking without a quote
-    // The legacy POST /v1/reservations does NOT accept quoteId.
-    // See: https://open-api-docs.guesty.com/docs/reservations-v3-booking-flow
-    // "OAPI" = Open API bookings (Guesty docs); filter to a custom source name or empty to omit.
-    $res_source = apply_filters( 'guesty_reservation_create_source', 'OAPI' );
-
+    // Quote confirm: omit body `source` (Guesty rejects duplicate vs inquiry). No-quote path: include source direct.
     if ($quote_id) {
         $res_url  = 'https://open-api.guesty.com/v1/reservations-v3/quote';
         $res_body = [
@@ -528,9 +509,6 @@ function guesty_create_booking_reservation_handler() {
         if ($rate_plan_id) {
             $res_body['ratePlanId'] = $rate_plan_id;
         }
-        if ( is_string( $res_source ) && $res_source !== '' ) {
-            $res_body['source'] = $res_source;
-        }
     } else {
         $res_url  = 'https://open-api.guesty.com/v1/reservations-v3';
         $res_body = [
@@ -540,7 +518,8 @@ function guesty_create_booking_reservation_handler() {
             'guestsCount'           => $guests,
             'guestId'               => $guest_id,
             'status'                => 'confirmed',
-            'source'                => ( is_string( $res_source ) && $res_source !== '' ) ? $res_source : 'manual',
+            // Case-sensitive match for fee auto-apply (automationSources contains 'Direct').
+            'source'                => 'Direct',
         ];
     }
 
@@ -565,7 +544,6 @@ function guesty_create_booking_reservation_handler() {
     $res_body_raw = wp_remote_retrieve_body($res_response);
     $res_data = json_decode($res_body_raw, true);
 
-    // Log the full Guesty response — visible in wp-content/debug.log
     guesty_log('reservation_response', 'HTTP ' . $res_code . ' | Body: ' . substr($res_body_raw, 0, 1000));
 
     if ($res_code !== 200 && $res_code !== 201) {
@@ -584,21 +562,16 @@ function guesty_create_booking_reservation_handler() {
         wp_send_json_error($err);
     }
 
-    // V3 endpoints return "reservationId"; legacy returns "_id"
     $reservation_id    = $res_data['reservationId'] ?? $res_data['_id'] ?? '';
     $confirmation_code = $res_data['confirmationCode'] ?? '';
 
     guesty_log('reservation_success', 'ReservationId: ' . $reservation_id . ' | ConfirmationCode: ' . $confirmation_code);
 
-    // Mark origin in Guesty: site title + URL on the reservation (other note).
-    guesty_reservation_set_origin_note( $token, $reservation_id );
+    guesty_reservation_set_origin_note($token, $reservation_id);
 
-    // ── Step 2: Resolve payment provider ID ──────────────────────────────
-    // Priority: frontend-passed → admin override → listing → account default
     $provider_id = $frontend_provider ?: guesty_get_payment_provider_id($listing_id);
 
     if (!$provider_id) {
-        // No provider configured — reservation created but payment not attached
         wp_send_json_success([
             'reservationId'    => $reservation_id,
             'confirmationCode' => $confirmation_code,
@@ -607,9 +580,6 @@ function guesty_create_booking_reservation_handler() {
         ]);
     }
 
-    // ── Step 3: Attach GuestyPay token to the guest ───────────────────────
-    // _id   = GuestyPay tokenization ID returned by guestyTokenization.submit()
-    // reuse = true so the method can be reused for future reservations
     $pay_body = [
         '_id'               => $guesty_token,
         'paymentProviderId' => $provider_id,
@@ -670,9 +640,6 @@ function guesty_create_booking_reservation_handler() {
     ]);
 }
 
-/**
- * Add coupons to an existing quote using the correct Guesty API endpoint
- */
 add_action('wp_ajax_guesty_apply_booking_coupon', 'guesty_apply_booking_coupon_handler');
 add_action('wp_ajax_nopriv_guesty_apply_booking_coupon', 'guesty_apply_booking_coupon_handler');
 function guesty_apply_booking_coupon_handler() {
@@ -694,11 +661,8 @@ function guesty_apply_booking_coupon_handler() {
         wp_send_json_error('Authentication failed.');
     }
 
-    // Use the correct Guesty API endpoint for adding coupons to quotes
-    // POST /quotes/{quoteId}/coupons with coupons array in body
-    // The query parameter should be a boolean true, not string "true"
     $url = "https://open-api.guesty.com/v1/quotes/$quote_id/coupons?" . http_build_query([
-        'mergeAccommodationFarePriceComponents' => true
+        'mergeAccommodationFarePriceComponents' => true,
     ]);
 
     $response = wp_remote_post($url, [
@@ -722,17 +686,12 @@ function guesty_apply_booking_coupon_handler() {
     $body = wp_remote_retrieve_body($response);
     $data = json_decode($body, true);
 
-    // Log the response for debugging
     guesty_log('coupon_response', "HTTP {$code} | Coupon: {$coupon} | Body: " . substr($body, 0, 1000));
 
-    // Check if the coupon was successfully applied
-    // Success = HTTP 200 AND the response has _id and rates structure
-    // The Guesty API doesn't always return "status": "valid" for coupon responses
     if ($code === 200 && isset($data['_id']) && isset($data['rates']['ratePlans'][0]['money']['money'])) {
-        // Check if coupon was actually applied by looking for it in the coupons array
         $applied_coupons = $data['coupons'] ?? [];
         $coupon_found = false;
-        
+
         foreach ($applied_coupons as $applied) {
             if (isset($applied['couponCode']) && strtoupper($applied['couponCode']) === strtoupper($coupon)) {
                 $coupon_found = true;
@@ -755,37 +714,35 @@ function guesty_apply_booking_coupon_handler() {
     }
 }
 
-/**
- * AJAX handler to calculate Quote
- */
 add_action('wp_ajax_get_guesty_quote', 'get_guesty_quote_handler');
 add_action('wp_ajax_nopriv_get_guesty_quote', 'get_guesty_quote_handler');
 function get_guesty_quote_handler() {
-    // 1. Get the token safely
     $token = guesty_get_token();
     if (!$token) {
-		guesty_log('Guesty Error', 'Token missing');
-		return;
-	}
-    
-    // 2. Collect and sanitize data from JavaScript
-    // Make sure these keys match your formData.append() names!
-    $listing_id = sanitize_text_field($_POST['listing_id']); 
-    $check_in   = sanitize_text_field($_POST['checkIn']);
-    $check_out  = sanitize_text_field($_POST['checkOut']);
+        guesty_log('Guesty Error', 'Token missing');
+        wp_send_json_error('Authentication failed. Please try again later.');
+    }
+
+    $listing_id = sanitize_text_field($_POST['listing_id'] ?? '');
+    $check_in   = sanitize_text_field($_POST['checkIn']     ?? '');
+    $check_out  = sanitize_text_field($_POST['checkOut']    ?? '');
     $guests     = isset($_POST['guests']) ? intval($_POST['guests']) : 1;
 
-    // 3. Prepare the Guesty Open API Body
+    if (!$listing_id || !$check_in || !$check_out) {
+        wp_send_json_error(['message' => 'Missing listing or dates.']);
+    }
+
     $url = "https://open-api.guesty.com/v1/quotes";
     $body = [
-        'listingId'            => $listing_id,
-        'checkInDateLocalized' => $check_in,
+        'listingId'             => $listing_id,
+        'checkInDateLocalized'  => $check_in,
         'checkOutDateLocalized' => $check_out,
-        'guestsCount'       => $guests,
-		'source' => 'manual'
+        'guestsCount'           => $guests,
+        // Must match the literal strings in each fee's automationSources (case-sensitive).
+        // 'Direct' triggers Guesty's auto-apply of fees configured for direct bookings.
+        'source'                => 'Direct',
     ];
 
-    // 4. Make the request
     $response = wp_remote_post($url, [
         'headers' => [
             'Authorization' => 'Bearer ' . $token,
@@ -793,10 +750,8 @@ function get_guesty_quote_handler() {
             'accept'        => 'application/json'
         ],
         'body' => json_encode($body),
-        'timeout' => 20 // Localhost can be slow, give it time
+        'timeout' => 20,
     ]);
-
-    // 5. Handle Errors or Success
     if (is_wp_error($response)) {
         wp_send_json_error('Guesty API connection failed');
     }
@@ -805,15 +760,59 @@ function get_guesty_quote_handler() {
     $data = json_decode(wp_remote_retrieve_body($response), true);
 
     if (in_array($status_code, [200, 201], true)) {
+        // Per Guesty docs, use rates.ratePlans[0].inquiryId for the upsell path
+        $inquiry_id   = $data['rates']['ratePlans'][0]['inquiryId']
+                      ?? $data['inquiryId']
+                      ?? $data['_id']
+                      ?? '';
+        $rate_plan_id = $data['rates']['ratePlans'][0]['ratePlan']['_id']
+                      ?? $data['rates']['ratePlans'][0]['money']['rateId']
+                      ?? '';
+
+        if ($inquiry_id) {
+            $inner_items = $data['rates']['ratePlans'][0]['money']['money']['invoiceItems'] ?? [];
+            $outer_items = $data['rates']['ratePlans'][0]['money']['invoiceItems']          ?? [];
+            $current_items = count($outer_items) >= count($inner_items) && !empty($outer_items)
+                ? $outer_items
+                : (!empty($inner_items) ? $inner_items : []);
+
+            $af_ids = guesty_get_applicable_fee_ids($token, $listing_id, $current_items);
+
+            if (!empty($af_ids)) {
+                $upsell_body = ['additionalFeeIds' => $af_ids];
+                if ($rate_plan_id) {
+                    $upsell_body['ratePlanIds'] = [$rate_plan_id];
+                }
+
+                $upsell_response = wp_remote_post(
+                    "https://open-api.guesty.com/v1/additional-fees/inquiries/{$inquiry_id}/upsells",
+                    [
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $token,
+                            'Content-Type'  => 'application/json',
+                            'Accept'        => 'application/json',
+                        ],
+                        'body'    => wp_json_encode($upsell_body),
+                        'timeout' => 20,
+                    ]
+                );
+
+                if (!is_wp_error($upsell_response) && wp_remote_retrieve_response_code($upsell_response) === 200) {
+                    $upsell_data = json_decode(wp_remote_retrieve_body($upsell_response), true);
+                    $upd_rp      = $upsell_data['rates']['ratePlans'][0]['money'] ?? [];
+                    if (!empty($upd_rp)) {
+                        $data['rates']['ratePlans'][0]['money'] = $upd_rp;
+                    }
+                }
+            }
+        }
+
         wp_send_json_success($data);
     } else {
         wp_send_json_error($data);
     }
 }
 
-/**
- * AJAX: Reset custom bedroom data so the next Guesty sync re-seeds it
- */
 add_action('wp_ajax_guesty_reset_custom_bedrooms', function () {
     if (!current_user_can('edit_posts')) {
         wp_send_json_error('Permission denied.');
