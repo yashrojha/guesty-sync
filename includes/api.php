@@ -148,7 +148,11 @@ function guesty_get_properties() {
         'timeout' => 50,
     ]);
 
-    if (is_wp_error($response)) return [];
+    // WordPress request error
+    if (is_wp_error($response)) {
+        guesty_log('error', $response->get_error_message());
+        return [];
+    }
 
     $data = json_decode(wp_remote_retrieve_body($response), true);
 

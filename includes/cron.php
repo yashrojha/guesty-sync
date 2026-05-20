@@ -107,17 +107,24 @@ function guesty_start_all_sync_queue($is_cron = true) {
     }
 	
 	// 2. Get all properties from API
-    $properties = guesty_get_properties();
-    $ids = array_values(array_filter(array_column($properties, '_id')));
-	// 3. CLEANUP: Now that we know who is active, draft the rest
-    guesty_cleanup_orphaned_properties($ids);
-	
-	
-    if (empty($ids)) {
-        guesty_log('info', ($is_cron ? 'Cron' : 'Manual') . ': No properties found');
-        guesty_finish_all_sync_queue($is_cron, true);
-        return;
-    }
+	$properties = guesty_get_properties();
+
+	if (empty($properties) || !is_array($properties)) {
+		guesty_log('error', 'Guesty API returned empty properties');
+		guesty_finish_all_sync_queue($is_cron, false);
+		return;
+	}
+
+	$ids = array_values(array_filter(array_column($properties, '_id')));
+
+	if (empty($ids)) {
+		guesty_log('info', ($is_cron ? 'Cron' : 'Manual') . ': No valid property IDs found');
+		guesty_finish_all_sync_queue($is_cron, false);
+		return;
+	}
+
+	// 3. CLEANUP: only runs when IDs exist
+	guesty_cleanup_orphaned_properties($ids);
 	
     update_option('guesty_any_pending', array_fill_keys($ids, true), false);
     update_option('guesty_all_sync_queue', $ids, false);
@@ -325,27 +332,60 @@ function guesty_sync_single_property_background($pid, $is_cron = true) {
 }
 
 /**
- * Drafts properties that were not part of the most recent sync.
+ * Sync publish/draft status with Guesty API
  */
 function guesty_cleanup_orphaned_properties($active_api_ids) {
-    // 1. Get all currently published properties in WP
+
+    // Get ALL properties (publish + draft)
     $wp_properties = get_posts([
         'post_type'      => 'properties',
-        'post_status'    => 'publish',
+        'post_status'    => ['publish', 'draft'],
         'posts_per_page' => -1,
         'fields'         => 'ids',
     ]);
 
     foreach ($wp_properties as $post_id) {
+
         $api_id = get_post_meta($post_id, 'guesty_id', true);
 
-        // 2. If the WP property is NOT in the list of active IDs from the API
-        if (!in_array($api_id, $active_api_ids)) {
-            wp_update_post([
-                'ID'          => $post_id,
-                'post_status' => 'draft' // Hide it!
-            ]);
-            guesty_log('info', "Cleanup: Property $post_id drafted because it's no longer in the API.");
+        if (empty($api_id)) {
+            continue;
+        }
+
+        $current_status = get_post_status($post_id);
+
+        // Property exists in API
+        if (in_array($api_id, $active_api_ids)) {
+
+            // Re-publish if currently draft
+            if ($current_status === 'draft') {
+
+                wp_update_post([
+                    'ID'          => $post_id,
+                    'post_status' => 'publish'
+                ]);
+
+                guesty_log(
+                    'info',
+                    "Restore: Property {$post_id} republished because it exists in API."
+                );
+            }
+
+        } else {
+
+            // Draft if missing from API
+            if ($current_status === 'publish') {
+
+                wp_update_post([
+                    'ID'          => $post_id,
+                    'post_status' => 'draft'
+                ]);
+
+                guesty_log(
+                    'info',
+                    "Cleanup: Property {$post_id} drafted because missing from API."
+                );
+            }
         }
     }
 }
