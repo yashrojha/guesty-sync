@@ -7,6 +7,7 @@ global $wpdb;
 
 // Delete log table
 $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}guesty_sync_logs");
+delete_option('guesty_logtype_widened_v2');
 
 // Delete options
 //delete_option('guesty_client_id');

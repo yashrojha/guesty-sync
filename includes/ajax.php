@@ -587,7 +587,12 @@ function guesty_create_booking_reservation_handler() {
         'reuse'             => true,
     ];
 
-    guesty_log('payment_method_request', 'GuestId: ' . $guest_id . ' | Provider: ' . $provider_id . ' | Token: ' . substr($guesty_token, 0, 12) . '…');
+    // Request body logged with the token redacted (PCI), but everything else
+    // intact. Tagging Res:<id> on every payment line so the full chain can be
+    // pulled per reservation regardless of how many rows are in the table.
+    $pay_body_log = $pay_body;
+    $pay_body_log['_id'] = substr($guesty_token, 0, 12) . '…';
+    guesty_log('payment_method_request', 'Res: ' . $reservation_id . ' | GuestId: ' . $guest_id . ' | Provider: ' . $provider_id . ' | Body: ' . json_encode($pay_body_log));
 
     $pay_response = wp_remote_post(
         "https://open-api.guesty.com/v1/guests/{$guest_id}/payment-methods",
@@ -604,16 +609,19 @@ function guesty_create_booking_reservation_handler() {
 
     $pay_status   = 'pending';
     $pay_err_msg  = '';
+    $pay_code     = 0;
+    $pay_body_raw = '';
 
     if (is_wp_error($pay_response)) {
-        $pay_err_msg = 'Payment attachment failed (network error).';
-        guesty_log('payment_method_error', 'WP_Error: ' . $pay_response->get_error_message());
+        $pay_err_msg  = 'Payment attachment failed (network error).';
+        $pay_body_raw = 'WP_Error: ' . $pay_response->get_error_message();
+        guesty_log('payment_method_error', 'Res: ' . $reservation_id . ' | ' . $pay_body_raw);
     } else {
         $pay_code     = wp_remote_retrieve_response_code($pay_response);
         $pay_body_raw = wp_remote_retrieve_body($pay_response);
         $pay_data     = json_decode($pay_body_raw, true);
 
-        guesty_log('payment_method_response', 'HTTP ' . $pay_code . ' | Body: ' . substr($pay_body_raw, 0, 500));
+        guesty_log('payment_method_response', 'Res: ' . $reservation_id . ' | HTTP ' . $pay_code . ' | Body: ' . $pay_body_raw);
 
         if ($pay_code === 200 || $pay_code === 201) {
             $pay_status = 'success';
@@ -628,9 +636,17 @@ function guesty_create_booking_reservation_handler() {
             if (!$pay_err_msg) {
                 $pay_err_msg = 'Payment could not be attached (HTTP ' . $pay_code . ').';
             }
-            guesty_log('payment_method_error', 'HTTP ' . $pay_code . ' | Error: ' . $pay_err_msg);
+            // Log full raw body too: Guesty 400s often hide the decline reason
+            // (3DS / Merchant Warrior auth / card decline) outside the standard
+            // error/message keys, so never truncate it away on failure.
+            guesty_log('payment_method_error', 'Res: ' . $reservation_id . ' | HTTP ' . $pay_code . ' | Error: ' . $pay_err_msg . ' | Raw: ' . $pay_body_raw);
         }
     }
+
+    // Single consolidated row that ALWAYS fires (success or failure), so the
+    // complete attach outcome for a reservation is guaranteed to be captured
+    // in one place even if other rows scroll out of the log viewer.
+    guesty_log('payment_method_attempt', 'Res: ' . $reservation_id . ' | Status: ' . $pay_status . ' | HTTP: ' . $pay_code . ' | Provider: ' . $provider_id . ' | Raw: ' . $pay_body_raw);
 
     wp_send_json_success([
         'reservationId'    => $reservation_id,

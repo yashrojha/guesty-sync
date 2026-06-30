@@ -176,9 +176,11 @@ function guesty_create_log_table() {
     $table = $wpdb->prefix . 'guesty_sync_logs';
     $charset_collate = $wpdb->get_charset_collate();
 
+    // log_type must fit values like 'payment_method_response' (23 chars).
+    // VARCHAR(20) silently dropped those rows on strict-mode MySQL.
     $sql = "CREATE TABLE $table (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        log_type VARCHAR(20) NOT NULL,
+        log_type VARCHAR(50) NOT NULL,
         message TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id)
@@ -186,6 +188,24 @@ function guesty_create_log_table() {
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta($sql);
+}
+
+/**
+ * Widen log_type on existing installs (was VARCHAR(20), too short for
+ * 'payment_method_request'/'payment_method_response' → those inserts failed
+ * on strict-mode MySQL and the rows were lost). Runs once.
+ */
+add_action('plugins_loaded', 'guesty_migrate_log_table');
+function guesty_migrate_log_table() {
+    if (get_option('guesty_logtype_widened_v2')) {
+        return;
+    }
+    global $wpdb;
+    $table = $wpdb->prefix . 'guesty_sync_logs';
+    if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table) {
+        $wpdb->query("ALTER TABLE {$table} MODIFY log_type VARCHAR(50) NOT NULL");
+    }
+    update_option('guesty_logtype_widened_v2', 1);
 }
 function guesty_log($type, $message) {
     global $wpdb;
