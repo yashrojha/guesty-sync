@@ -29,6 +29,7 @@ add_action('init', function () {
 function guesty_get_bed_types() {
     return [
         // Primary (Guesty grid)
+        'SUPER_KING_BED' => 'Super King Bed',
         'KING_BED'       => 'King Bed',
         'QUEEN_BED'      => 'Queen Bed',
         'DOUBLE_BED'     => 'Double Bed',
