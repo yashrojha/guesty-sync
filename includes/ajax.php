@@ -445,6 +445,8 @@ function guesty_create_booking_guest_handler() {
     if ($email) $body['email'] = $email;
     if ($phone) $body['phone'] = $phone;
 
+    guesty_log('guest_request', 'Name: ' . $first_name . ' ' . $last_name . ' | Email: ' . ($email ?: '(none)'));
+
     $response = wp_remote_post('https://open-api.guesty.com/v1/guests-crud', [
         'headers' => [
             'Authorization' => 'Bearer ' . $token,
@@ -456,16 +458,23 @@ function guesty_create_booking_guest_handler() {
     ]);
 
     if (is_wp_error($response)) {
+        guesty_log('guest_error', 'WP_Error: ' . $response->get_error_message());
         wp_send_json_error('Failed to connect. Please try again.');
     }
 
-    $code = wp_remote_retrieve_response_code($response);
-    $data = json_decode(wp_remote_retrieve_body($response), true);
+    $code   = wp_remote_retrieve_response_code($response);
+    $raw    = wp_remote_retrieve_body($response);
+    $data   = json_decode($raw, true);
 
     if ($code === 200 || $code === 201) {
-        wp_send_json_success(['guestId' => $data['_id']]);
+        $guest_id = is_array($data) ? ($data['_id'] ?? '') : '';
+        // Guest id is the pivot for the whole payment chain — log it so any
+        // later payment failure can be traced back to the right guest.
+        guesty_log('guest_ok', 'GuestId: ' . $guest_id . ' | Email: ' . ($email ?: '(none)'));
+        wp_send_json_success(['guestId' => $guest_id]);
     } else {
-        $msg = $data['error']['message'] ?? ($data['message'] ?? 'Failed to create guest profile.');
+        $msg = (is_array($data) ? ($data['error']['message'] ?? ($data['message'] ?? '')) : '') ?: 'Failed to create guest profile.';
+        guesty_log('guest_error', 'HTTP ' . $code . ' | Error: ' . $msg . ' | Full body: ' . $raw);
         wp_send_json_error($msg);
     }
 }
@@ -498,13 +507,27 @@ function guesty_create_booking_reservation_handler() {
         wp_send_json_error('Authentication failed. Please try again.');
     }
 
-    // Quote confirm: omit body `source` (Guesty rejects duplicate vs inquiry). No-quote path: include source direct.
+    // IMPORTANT — reservation is created as `reserved`, NOT `confirmed`.
+    //
+    // Guesty generates the auto-payment schedule at the instant a reservation
+    // becomes `confirmed`. If the card is attached AFTER confirmation, those
+    // schedules are created with no payment method and stay "Unscheduled" /
+    // A$0 forever (the bug we're fixing). So we:
+    //   1. create as `reserved` (dates held, no automations yet)
+    //   2. attach the card (below)
+    //   3. confirm (guesty_reservation_confirm) → automations fire WITH the card
+    //
+    // `reservedUntil` = -1 (no expiry). We confirm within seconds, so this only
+    // matters in the rare case the confirm step fails after retries: we must NOT
+    // let such a booking silently expire and disappear. Keeping it held lets the
+    // backend team finalize it manually (they monitor `reservation_confirm_failed_final`).
     if ($quote_id) {
         $res_url  = 'https://open-api.guesty.com/v1/reservations-v3/quote';
         $res_body = [
-            'quoteId'  => $quote_id,
-            'status'   => 'confirmed',
-            'guestId'  => $guest_id,
+            'quoteId'       => $quote_id,
+            'status'        => 'reserved',
+            'reservedUntil' => -1,
+            'guestId'       => $guest_id,
         ];
         if ($rate_plan_id) {
             $res_body['ratePlanId'] = $rate_plan_id;
@@ -517,7 +540,8 @@ function guesty_create_booking_reservation_handler() {
             'checkOutDateLocalized' => $check_out,
             'guestsCount'           => $guests,
             'guestId'               => $guest_id,
-            'status'                => 'confirmed',
+            'status'                => 'reserved',
+            'reservedUntil'         => -1,
             // Case-sensitive match for fee auto-apply (automationSources contains 'Direct').
             'source'                => 'Direct',
         ];
@@ -544,7 +568,9 @@ function guesty_create_booking_reservation_handler() {
     $res_body_raw = wp_remote_retrieve_body($res_response);
     $res_data = json_decode($res_body_raw, true);
 
-    guesty_log('reservation_response', 'HTTP ' . $res_code . ' | Body: ' . substr($res_body_raw, 0, 1000));
+    // Full body, never truncated — we must be able to reconstruct exactly what
+    // Guesty returned when diagnosing a payment/booking issue.
+    guesty_log('reservation_response', 'HTTP ' . $res_code . ' | Body: ' . $res_body_raw);
 
     if ($res_code !== 200 && $res_code !== 201) {
         $err = '';
@@ -556,27 +582,50 @@ function guesty_create_booking_reservation_handler() {
                 ?? '';
         }
         if (!$err) {
-            $err = 'Reservation failed (HTTP ' . $res_code . '). Raw: ' . substr($res_body_raw, 0, 300);
+            $err = 'Reservation failed (HTTP ' . $res_code . ').';
         }
-        guesty_log('reservation_error', 'HTTP ' . $res_code . ' | Error: ' . $err . ' | Full body: ' . substr($res_body_raw, 0, 1000));
+        guesty_log('reservation_error', 'HTTP ' . $res_code . ' | Error: ' . $err . ' | Full body: ' . $res_body_raw);
         wp_send_json_error($err);
     }
 
     $reservation_id    = $res_data['reservationId'] ?? $res_data['_id'] ?? '';
     $confirmation_code = $res_data['confirmationCode'] ?? '';
 
-    guesty_log('reservation_success', 'ReservationId: ' . $reservation_id . ' | ConfirmationCode: ' . $confirmation_code);
+    guesty_log('reservation_success', 'Res: ' . $reservation_id . ' | ConfirmationCode: ' . $confirmation_code . ' | GuestId: ' . $guest_id . ' | Status: reserved');
+
+    if (!$reservation_id) {
+        // Guesty returned 2xx but no id — cannot attach payment or confirm.
+        guesty_log('reservation_error', 'Res: (none) | 2xx but no reservationId in body | Full body: ' . $res_body_raw);
+        wp_send_json_error('Booking could not be created (no reservation id returned). Please try again.');
+    }
 
     guesty_reservation_set_origin_note($token, $reservation_id);
 
-    $provider_id = $frontend_provider ?: guesty_get_payment_provider_id($listing_id);
+    // Resolve payment provider and log WHERE it came from, so a wrong/missing
+    // provider (a known cause of "reservation created without payment method")
+    // is diagnosable from the logs alone.
+    if ($frontend_provider) {
+        $provider_id     = $frontend_provider;
+        $provider_source = 'frontend';
+    } else {
+        $provider_id     = guesty_get_payment_provider_id($listing_id);
+        $provider_source = 'lookup';
+    }
+    guesty_log('payment_provider_resolved', 'Res: ' . $reservation_id . ' | Provider: ' . ($provider_id ?: '(none)') . ' | Source: ' . $provider_source . ' | Listing: ' . $listing_id);
 
+    // No payment provider on this listing → no card can be attached. Per the
+    // agreed behavior, confirm the booking anyway and flag it for manual
+    // payment collection in Guesty.
     if (!$provider_id) {
+        guesty_log('payment_method_attempt', 'Res: ' . $reservation_id . ' | Status: skipped | Reason: no_provider | Provider: (none)');
+        $confirm = guesty_reservation_confirm($token, $reservation_id);
         wp_send_json_success([
             'reservationId'    => $reservation_id,
             'confirmationCode' => $confirmation_code,
             'paymentStatus'    => 'pending',
-            'paymentNote'      => 'Payment provider not configured. Please attach payment manually in Guesty.',
+            'paymentNote'      => $confirm['ok']
+                ? 'Payment provider not configured. Please attach payment manually in Guesty.'
+                : 'Booking created but confirmation failed — please review in Guesty.',
         ]);
     }
 
@@ -594,6 +643,7 @@ function guesty_create_booking_reservation_handler() {
     $pay_body_log['_id'] = substr($guesty_token, 0, 12) . '…';
     guesty_log('payment_method_request', 'Res: ' . $reservation_id . ' | GuestId: ' . $guest_id . ' | Provider: ' . $provider_id . ' | Body: ' . json_encode($pay_body_log));
 
+    // STEP 2: attach the card to the (still `reserved`) reservation.
     $pay_response = wp_remote_post(
         "https://open-api.guesty.com/v1/guests/{$guest_id}/payment-methods",
         [
@@ -611,6 +661,7 @@ function guesty_create_booking_reservation_handler() {
     $pay_err_msg  = '';
     $pay_code     = 0;
     $pay_body_raw = '';
+    $attach_ok    = false;
 
     if (is_wp_error($pay_response)) {
         $pay_err_msg  = 'Payment attachment failed (network error).';
@@ -624,7 +675,15 @@ function guesty_create_booking_reservation_handler() {
         guesty_log('payment_method_response', 'Res: ' . $reservation_id . ' | HTTP ' . $pay_code . ' | Body: ' . $pay_body_raw);
 
         if ($pay_code === 200 || $pay_code === 201) {
-            $pay_status = 'success';
+            // A 2xx means Guesty accepted the request; confirm the method is
+            // actually ACTIVE (processor may reject silently).
+            $method_status = is_array($pay_data) ? strtoupper((string)($pay_data['status'] ?? '')) : '';
+            $attach_ok     = ('ACTIVE' === $method_status) || ('' === $method_status);
+            $pay_status    = $attach_ok ? 'success' : 'pending';
+            if (!$attach_ok) {
+                $pay_err_msg = 'Card attached but not ACTIVE (status: ' . $method_status . ').';
+                guesty_log('payment_method_error', 'Res: ' . $reservation_id . ' | ' . $pay_err_msg . ' | Raw: ' . $pay_body_raw);
+            }
         } else {
             $pay_err_msg = '';
             if (is_array($pay_data)) {
@@ -648,9 +707,51 @@ function guesty_create_booking_reservation_handler() {
     // in one place even if other rows scroll out of the log viewer.
     guesty_log('payment_method_attempt', 'Res: ' . $reservation_id . ' | Status: ' . $pay_status . ' | HTTP: ' . $pay_code . ' | Provider: ' . $provider_id . ' | Raw: ' . $pay_body_raw);
 
+    // Authoritative cross-check via the reservation itself (the attach response
+    // alone can be optimistic). Only bother if the attach looked OK.
+    if ($attach_ok && !guesty_reservation_has_active_payment_method($token, $reservation_id)) {
+        // Card not actually on the reservation → auto-payments would have no
+        // method to charge. Downgrade to pending so staff know to follow up,
+        // but (per agreed policy) still confirm the booking below.
+        $pay_status  = 'pending';
+        $pay_err_msg = $pay_err_msg ?: 'Card was not registered on the reservation.';
+    }
+
+    // STEP 3: confirm the reservation. Because the card is already attached,
+    // Guesty's auto-payment automations now generate & charge per the property's
+    // payment rules (deposit at confirmation, balance before check-in, etc.).
+    // Policy (per client): ALWAYS confirm — a declined/failed card must never
+    // cancel or drop the booking. The backend team collects payment manually
+    // (e.g. via a payment link) in that case.
+    //
+    // Confirm is retried a few times because a transient failure here would
+    // otherwise leave the reservation in `reserved` (and it could later expire
+    // and be lost). Retrying makes "always confirmed" reliable.
+    $confirm = ['ok' => false, 'code' => 0, 'body' => ''];
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        $confirm = guesty_reservation_confirm($token, $reservation_id);
+        if ($confirm['ok']) {
+            break;
+        }
+        if ($attempt < 3) {
+            sleep(3); // brief backoff; Guesty needs a moment between updates
+        }
+    }
+
+    if (!$confirm['ok']) {
+        // Extremely rare: status update kept failing. Do NOT tell the guest to
+        // rebook (that would create duplicates). The reservation exists; alert
+        // the backend to finalize it manually.
+        guesty_log('reservation_confirm_failed_final', 'Res: ' . $reservation_id . ' | Confirm failed after 3 attempts | HTTP ' . $confirm['code'] . ' | Body: ' . $confirm['body']);
+        $pay_status  = 'pending';
+        $pay_err_msg = 'Booking received. Our team will finalize your confirmation shortly.';
+    }
+
     wp_send_json_success([
         'reservationId'    => $reservation_id,
         'confirmationCode' => $confirmation_code,
+        // 'success' = card active & auto-payments will run; 'pending' = booking
+        // confirmed but payment needs manual attention.
         'paymentStatus'    => $pay_status,
         'paymentNote'      => $pay_err_msg ?: null,
     ]);

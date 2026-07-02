@@ -1164,9 +1164,14 @@ get_header();
                                 `<p><strong>Property:</strong> ${GBK.propertyTitle}</p>` +
                                 `<p><strong>Dates:</strong> ${GBK.checkIn} &nbsp;&rarr;&nbsp; ${GBK.checkOut}</p>` +
                                 `<p><strong>Guests:</strong> ${GBK.guests}</p>` +
+                                // The website only registers the card; the actual
+                                // charge is handled by Guesty's auto-payments and is
+                                // not confirmed synchronously here. So we never claim
+                                // "Processed" — only that the booking is confirmed and
+                                // the card is on file.
                                 (data.data.paymentStatus === 'success' ?
-                                    `<p><strong>Payment:</strong> <span style="color:#059669;">Processed ✓</span></p>` :
-                                    `<p><strong>Payment:</strong> Pending — you will be contacted to confirm.</p>`);
+                                    `<p><strong>Payment:</strong> Card saved — your payment will be processed automatically.</p>` :
+                                    `<p><strong>Payment:</strong> Our team will contact you to complete payment.</p>`);
 
                             successEl.scrollIntoView({
                                 behavior: 'smooth'

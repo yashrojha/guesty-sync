@@ -522,12 +522,146 @@ function guesty_reservation_set_origin_note( $bearer_token, $reservation_id, $no
     $code = wp_remote_retrieve_response_code( $response );
     if ( $code < 200 || $code >= 300 ) {
         $raw = wp_remote_retrieve_body( $response );
-        guesty_log( 'reservation_note_error', 'HTTP ' . $code . ' | ' . substr( (string) $raw, 0, 500 ) );
+        guesty_log( 'reservation_note_error', 'Res: ' . $reservation_id . ' | HTTP ' . $code . ' | ' . (string) $raw );
 
         return false;
     }
 
-    guesty_log( 'reservation_note_ok', 'ReservationId: ' . $reservation_id );
+    guesty_log( 'reservation_note_ok', 'Res: ' . $reservation_id );
 
     return true;
+}
+
+/**
+ * Confirm a reservation that was created in `reserved` status.
+ *
+ * Guesty's auto-payment automations are generated at the moment a reservation
+ * becomes `confirmed`. For those automations to pick up the guest's card, the
+ * payment method MUST already be attached before this call runs — otherwise the
+ * scheduled payments are created with no card and sit "pending"/"Unscheduled"
+ * forever (never charged). So the booking flow is:
+ *   1. create reservation as `reserved`
+ *   2. attach payment method (with reservationId)
+ *   3. confirm here  ← automations fire WITH the card → auto-charge per rules
+ *
+ * @param string $bearer_token  Guesty OAuth token.
+ * @param string $reservation_id Guesty reservation _id.
+ * @return array{ok:bool,code:int,body:string} Result of the status update.
+ */
+function guesty_reservation_confirm( $bearer_token, $reservation_id ) {
+    if ( ! $reservation_id || ! $bearer_token ) {
+        return [ 'ok' => false, 'code' => 0, 'body' => 'missing token or reservation id' ];
+    }
+
+    $url = 'https://open-api.guesty.com/v1/reservations-v3/' . rawurlencode( $reservation_id ) . '/status';
+
+    guesty_log( 'reservation_confirm_request', 'Res: ' . $reservation_id );
+
+    $response = wp_remote_request(
+        $url,
+        [
+            'method'  => 'PUT',
+            'headers' => [
+                'Authorization' => 'Bearer ' . $bearer_token,
+                'Content-Type'  => 'application/json',
+                'Accept'        => 'application/json',
+            ],
+            'body'    => wp_json_encode( [ 'status' => 'confirmed' ] ),
+            'timeout' => 30,
+        ]
+    );
+
+    if ( is_wp_error( $response ) ) {
+        guesty_log( 'reservation_confirm_error', 'Res: ' . $reservation_id . ' | WP_Error: ' . $response->get_error_message() );
+
+        return [ 'ok' => false, 'code' => 0, 'body' => $response->get_error_message() ];
+    }
+
+    $code = (int) wp_remote_retrieve_response_code( $response );
+    $raw  = (string) wp_remote_retrieve_body( $response );
+    $ok   = ( $code >= 200 && $code < 300 );
+
+    guesty_log(
+        $ok ? 'reservation_confirm_ok' : 'reservation_confirm_error',
+        'Res: ' . $reservation_id . ' | HTTP ' . $code . ' | Body: ' . $raw
+    );
+
+    return [ 'ok' => $ok, 'code' => $code, 'body' => $raw ];
+}
+
+/**
+ * Check whether a payment method is actually attached & active on a reservation.
+ *
+ * A 2xx from POST /payment-methods only means Guesty accepted the request — the
+ * processor (Merchant Warrior / GuestyPay) can still reject the card
+ * asynchronously, in which case the reservation ends up with no usable method.
+ * Guesty exposes the authoritative result via `payments=true` on the retrieval
+ * endpoint, returning a `paymentMethods` array; an accepted card shows
+ * `status: "ACTIVE"`.
+ *
+ * @param string $bearer_token   Guesty OAuth token.
+ * @param string $reservation_id Guesty reservation _id.
+ * @return bool True if an ACTIVE payment method is present on the reservation.
+ */
+function guesty_reservation_has_active_payment_method( $bearer_token, $reservation_id ) {
+    if ( ! $reservation_id || ! $bearer_token ) {
+        return false;
+    }
+
+    $url = add_query_arg(
+        [ 'reservationIds[]' => $reservation_id, 'payments' => 'true' ],
+        'https://open-api.guesty.com/v1/reservations-v3'
+    );
+
+    $response = wp_remote_get(
+        $url,
+        [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $bearer_token,
+                'Accept'        => 'application/json',
+            ],
+            'timeout' => 20,
+        ]
+    );
+
+    if ( is_wp_error( $response ) ) {
+        guesty_log( 'payment_validate_error', 'Res: ' . $reservation_id . ' | WP_Error: ' . $response->get_error_message() );
+
+        return false;
+    }
+
+    $raw  = (string) wp_remote_retrieve_body( $response );
+    $data = json_decode( $raw, true );
+
+    // Response may be a bare array of reservations or wrapped under `results`.
+    $reservations = [];
+    if ( is_array( $data ) ) {
+        if ( isset( $data['results'] ) && is_array( $data['results'] ) ) {
+            $reservations = $data['results'];
+        } else {
+            $reservations = $data;
+        }
+    }
+
+    $has_active = false;
+    foreach ( $reservations as $res ) {
+        if ( ! is_array( $res ) ) {
+            continue;
+        }
+        $methods = $res['paymentMethods'] ?? [];
+        if ( ! is_array( $methods ) ) {
+            continue;
+        }
+        foreach ( $methods as $m ) {
+            $status = is_array( $m ) ? strtoupper( (string) ( $m['status'] ?? '' ) ) : '';
+            if ( 'ACTIVE' === $status ) {
+                $has_active = true;
+                break 2;
+            }
+        }
+    }
+
+    guesty_log( 'payment_validate', 'Res: ' . $reservation_id . ' | ActiveMethod: ' . ( $has_active ? 'yes' : 'no' ) );
+
+    return $has_active;
 }
