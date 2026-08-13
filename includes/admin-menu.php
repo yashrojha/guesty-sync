@@ -128,6 +128,38 @@
         ?>
         <h2>Booking Page Settings</h2>
         <p>Configure payment and links used on the instant booking page.</p>
+        <?php
+        if (isset($_GET['guesty_wh'])) {
+            $wh_ok  = ($_GET['guesty_wh'] === 'ok');
+            $wh_msg = isset($_GET['guesty_wh_msg']) ? sanitize_text_field(rawurldecode(wp_unslash($_GET['guesty_wh_msg']))) : '';
+            printf(
+                '<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+                $wh_ok ? 'success' : 'error',
+                esc_html($wh_msg ?: ($wh_ok ? 'Done.' : 'Something went wrong.'))
+            );
+        }
+        ?>
+        <form id="guesty-register-webhook-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="guesty_register_webhook" />
+            <?php wp_nonce_field('guesty_register_webhook'); ?>
+        </form>
+        <form id="guesty-delete-webhook-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="guesty_delete_webhook" />
+            <?php wp_nonce_field('guesty_delete_webhook'); ?>
+        </form>
+        <?php
+        // Live status: is our webhook already registered on Guesty?
+        $wh_registered = false;
+        $wh_check_err  = false;
+        if (function_exists('guesty_find_registered_webhook')) {
+            $wh_found = guesty_find_registered_webhook();
+            if (is_wp_error($wh_found)) {
+                $wh_check_err = true;
+            } else {
+                $wh_registered = is_array($wh_found);
+            }
+        }
+        ?>
         <form method="post" action="options.php">
             <?php
             settings_fields('guesty_booking_settings_group');
@@ -139,6 +171,31 @@
                     <td>
                         <input type="text" class="regular-text" name="guesty_stripe_payment_provider_id" value="<?php echo esc_attr($provider_id); ?>" placeholder="5fe4b21675087f01a3c5ab5b" />
                         <p class="description">The Guesty payment provider ID used by GuestyPay. Find this in Guesty &rsaquo; Settings &rsaquo; Payment Providers. If left blank, the plugin will attempt to auto-detect it from the listing or account default.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Payment Webhook URL</th>
+                    <td>
+                        <?php if ($wh_check_err) : ?>
+                            <input type="text" class="large-text code" readonly onclick="this.select();" value="<?php echo esc_attr(function_exists('guesty_get_webhook_url') ? guesty_get_webhook_url() : ''); ?>" />
+                            <p style="margin-top:8px;">
+                                <span style="color:#b32d2e;">&#9888; Couldn't reach Guesty to check status.</span>
+                                <button type="submit" form="guesty-register-webhook-form" class="button button-secondary" style="margin-left:8px;">Register webhook with Guesty</button>
+                            </p>
+                        <?php elseif ($wh_registered) : ?>
+                            <p style="margin-top:8px;">
+                                <span style="color:#008a20;font-weight:600;">&#10003; Registered with Guesty</span>
+                                <button type="submit" form="guesty-register-webhook-form" class="button button-secondary" style="margin-left:8px;">Re-register</button>
+                                <button type="submit" form="guesty-delete-webhook-form" class="button button-link-delete" style="margin-left:4px;" onclick="return confirm('Remove this payment webhook from Guesty? Charge results will stop being recorded until you register again.');">Remove</button>
+                            </p>
+                            <p class="description">This is a one-time setup &mdash; nothing more to do. Only re-register if your site URL or the webhook token changes.</p>
+                        <?php else : ?>
+                            <input type="text" class="large-text code" readonly onclick="this.select();" value="<?php echo esc_attr(function_exists('guesty_get_webhook_url') ? guesty_get_webhook_url() : ''); ?>" />
+                            <p style="margin-top:8px;">
+                                <button type="submit" form="guesty-register-webhook-form" class="button button-primary">Register webhook with Guesty</button>
+                                <span class="description" style="margin-left:8px;">One-time click &mdash; sends this URL + payment events to Guesty via the API (the dashboard can't create webhooks).</span>
+                            </p>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <tr>
@@ -495,7 +552,9 @@
     function guesty_sync_logs_page() {
         global $wpdb;
         $logs = $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}guesty_sync_logs ORDER BY id DESC LIMIT 50"
+            "SELECT * FROM {$wpdb->prefix}guesty_sync_logs
+             WHERE message NOT LIKE 'Cron: Property % synchronized successfully.'
+             ORDER BY id DESC LIMIT 250"
         );
 
         echo '<div class="wrap"><h1>Sync Logs</h1><table class="widefat">';

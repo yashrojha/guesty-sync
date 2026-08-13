@@ -100,7 +100,8 @@ function guesty_start_all_sync_queue($is_cron = true) {
 	// ✅ ONLY mark last run time if it's the automated schedule
     if ($is_cron) {
         update_option('guesty_cron_last_run', time(), false);
-        guesty_log('info', 'Cron: Auto sync started at ' . wp_date('F j, Y g:i A'));
+        $interval = get_option('guesty_sync_interval', 'daily');
+        guesty_log('info', 'Cron: Auto sync started at ' . wp_date('F j, Y g:i A') . ' | Interval: ' . $interval);
     } else {
         update_option('guesty_cron_last_run_manual', time(), false);
         guesty_log('info', 'Manual: All sync started by user at ' . wp_date('F j, Y g:i A'));
@@ -119,7 +120,7 @@ function guesty_start_all_sync_queue($is_cron = true) {
 
 	if (empty($ids)) {
 		guesty_log('info', ($is_cron ? 'Cron' : 'Manual') . ': No valid property IDs found');
-		guesty_finish_all_sync_queue($is_cron, false);
+		guesty_finish_all_sync_queue($is_cron, true);
 		return;
 	}
 
@@ -182,14 +183,22 @@ function guesty_finish_all_sync_queue($is_cron = true, $no_properties = false) {
         ? get_option('guesty_cron_last_run')
         : get_option('guesty_cron_last_run_manual');
     $duration = $start ? (time() - $start) : 0;
+    $total_synced = (int) get_option('guesty_all_sync_total', 0);
+    
     if ($no_properties) {
-        // nothing else
+        guesty_log(
+            'info',
+            ($is_cron ? 'Cron: Auto sync finished at ' : 'Manual: All sync finished at ')
+            . wp_date('F j, Y g:i A')
+            . ' (No properties found in API)'
+        );
     } else {
         guesty_log(
             'info',
             ($is_cron ? 'Cron: Auto sync finished at ' : 'Manual: All sync finished at ')
             . wp_date('F j, Y g:i A')
-            . ' (Duration: ' . human_time_diff(0, $duration) . ')'
+            . ' | Properties: ' . $total_synced
+            . ' | Duration: ' . human_time_diff(0, $duration)
         );
     }
     guesty_end_sync_lock();
@@ -219,7 +228,7 @@ function guesty_run_single_background_worker($pid) {
         'image_total' => 0
     ]);
 	update_option('guesty_cron_last_run_manual_single', time(), false);
-	guesty_log('info', 'Manual: Single Sync started by user at ' . wp_date('F j, Y g:i A'));
+	guesty_log('info', 'Manual: Single sync started by user at ' . wp_date('F j, Y g:i A') . ' | Property ID: ' . $pid);
 
     // 2. Set the lock so other syncs don't start
     set_transient('guesty_sync_lock', 'single_running', 1 * HOUR_IN_SECONDS);
@@ -231,7 +240,7 @@ function guesty_run_single_background_worker($pid) {
     delete_transient('guesty_sync_lock');
 	$start = get_option('guesty_cron_last_run_manual_single');
 	$duration = $start ? (time() - $start) : 0;
-	guesty_log('info', 'Manual: Single sync finished at ' . wp_date('F j, Y g:i A') .' (Duration: ' . human_time_diff(0, $duration) . ')');
+	guesty_log('info', 'Manual: Single sync finished at ' . wp_date('F j, Y g:i A') . ' | Property ID: ' . $pid . ' | Duration: ' . human_time_diff(0, $duration));
 	guesty_end_sync_lock();
 	delete_option('guesty_cron_last_run_manual_single');
     guesty_set_sync_ui([
@@ -324,9 +333,8 @@ function guesty_sync_single_property_background($pid, $is_cron = true) {
     update_post_meta($post_id, 'guesty_sync_status', 'Completed');
 	update_option('guesty_last_sync', time());
     
-	if ($is_cron) {
-		guesty_log('info', "Cron: Property $post_id synchronized successfully.");
-	} else {
+	// Skip per-property cron success logs — they flood Sync Logs.
+	if (!$is_cron) {
 		guesty_log('info', "Manual: Property $post_id synchronized successfully.");
 	}
 }

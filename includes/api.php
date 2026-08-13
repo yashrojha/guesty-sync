@@ -533,20 +533,9 @@ function guesty_reservation_set_origin_note( $bearer_token, $reservation_id, $no
 }
 
 /**
- * Confirm a reservation that was created in `reserved` status.
- *
- * Guesty's auto-payment automations are generated at the moment a reservation
- * becomes `confirmed`. For those automations to pick up the guest's card, the
- * payment method MUST already be attached before this call runs — otherwise the
- * scheduled payments are created with no card and sit "pending"/"Unscheduled"
- * forever (never charged). So the booking flow is:
- *   1. create reservation as `reserved`
- *   2. attach payment method (with reservationId)
- *   3. confirm here  ← automations fire WITH the card → auto-charge per rules
- *
- * @param string $bearer_token  Guesty OAuth token.
- * @param string $reservation_id Guesty reservation _id.
- * @return array{ok:bool,code:int,body:string} Result of the status update.
+ * Confirm a reservation created in `reserved` status. Auto-payment automations
+ * generate at confirmation, so the card must already be attached before this
+ * runs, else the schedule is created with no card and never charges.
  */
 function guesty_reservation_confirm( $bearer_token, $reservation_id ) {
     if ( ! $reservation_id || ! $bearer_token ) {
@@ -590,18 +579,9 @@ function guesty_reservation_confirm( $bearer_token, $reservation_id ) {
 }
 
 /**
- * Check whether a payment method is actually attached & active on a reservation.
- *
- * A 2xx from POST /payment-methods only means Guesty accepted the request — the
- * processor (Merchant Warrior / GuestyPay) can still reject the card
- * asynchronously, in which case the reservation ends up with no usable method.
- * Guesty exposes the authoritative result via `payments=true` on the retrieval
- * endpoint, returning a `paymentMethods` array; an accepted card shows
- * `status: "ACTIVE"`.
- *
- * @param string $bearer_token   Guesty OAuth token.
- * @param string $reservation_id Guesty reservation _id.
- * @return bool True if an ACTIVE payment method is present on the reservation.
+ * True if an ACTIVE payment method is bound to the reservation. A 2xx from the
+ * attach call isn't enough — the processor can reject the card async — so we
+ * read the reservation's `paymentMethods` array via `payments=true`.
  */
 function guesty_reservation_has_active_payment_method( $bearer_token, $reservation_id ) {
     if ( ! $reservation_id || ! $bearer_token ) {
@@ -664,4 +644,27 @@ function guesty_reservation_has_active_payment_method( $bearer_token, $reservati
     guesty_log( 'payment_validate', 'Res: ' . $reservation_id . ' | ActiveMethod: ' . ( $has_active ? 'yes' : 'no' ) );
 
     return $has_active;
+}
+
+/**
+ * Poll until the card is bound to the reservation. The attach call returns
+ * ACTIVE immediately (card on the guest), but Guesty takes a few seconds to
+ * propagate it onto the reservation, which is what confirmation reads. Confirming
+ * too early yields a schedule with no card.
+ */
+function guesty_reservation_wait_for_payment_method( $bearer_token, $reservation_id, $max_attempts = 6, $delay_seconds = 5 ) {
+    for ( $attempt = 1; $attempt <= $max_attempts; $attempt++ ) {
+        if ( guesty_reservation_has_active_payment_method( $bearer_token, $reservation_id ) ) {
+            guesty_log( 'payment_validate_bound', 'Res: ' . $reservation_id . ' | Bound after attempt ' . $attempt );
+
+            return true;
+        }
+        if ( $attempt < $max_attempts ) {
+            sleep( $delay_seconds );
+        }
+    }
+
+    guesty_log( 'payment_validate_timeout', 'Res: ' . $reservation_id . ' | Card not bound to reservation after ' . $max_attempts . ' attempts' );
+
+    return false;
 }

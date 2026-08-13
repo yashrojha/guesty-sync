@@ -468,8 +468,6 @@ function guesty_create_booking_guest_handler() {
 
     if ($code === 200 || $code === 201) {
         $guest_id = is_array($data) ? ($data['_id'] ?? '') : '';
-        // Guest id is the pivot for the whole payment chain — log it so any
-        // later payment failure can be traced back to the right guest.
         guesty_log('guest_ok', 'GuestId: ' . $guest_id . ' | Email: ' . ($email ?: '(none)'));
         wp_send_json_success(['guestId' => $guest_id]);
     } else {
@@ -507,20 +505,10 @@ function guesty_create_booking_reservation_handler() {
         wp_send_json_error('Authentication failed. Please try again.');
     }
 
-    // IMPORTANT — reservation is created as `reserved`, NOT `confirmed`.
-    //
-    // Guesty generates the auto-payment schedule at the instant a reservation
-    // becomes `confirmed`. If the card is attached AFTER confirmation, those
-    // schedules are created with no payment method and stay "Unscheduled" /
-    // A$0 forever (the bug we're fixing). So we:
-    //   1. create as `reserved` (dates held, no automations yet)
-    //   2. attach the card (below)
-    //   3. confirm (guesty_reservation_confirm) → automations fire WITH the card
-    //
-    // `reservedUntil` = -1 (no expiry). We confirm within seconds, so this only
-    // matters in the rare case the confirm step fails after retries: we must NOT
-    // let such a booking silently expire and disappear. Keeping it held lets the
-    // backend team finalize it manually (they monitor `reservation_confirm_failed_final`).
+    // Create as `reserved` (not `confirmed`): auto-payments generate at
+    // confirmation, so the card must be attached first (steps below), else the
+    // schedule has no card and never charges. reservedUntil -1 so a booking
+    // stuck in reserved (confirm failed) is never auto-expired.
     if ($quote_id) {
         $res_url  = 'https://open-api.guesty.com/v1/reservations-v3/quote';
         $res_body = [
@@ -568,8 +556,6 @@ function guesty_create_booking_reservation_handler() {
     $res_body_raw = wp_remote_retrieve_body($res_response);
     $res_data = json_decode($res_body_raw, true);
 
-    // Full body, never truncated — we must be able to reconstruct exactly what
-    // Guesty returned when diagnosing a payment/booking issue.
     guesty_log('reservation_response', 'HTTP ' . $res_code . ' | Body: ' . $res_body_raw);
 
     if ($res_code !== 200 && $res_code !== 201) {
@@ -601,9 +587,8 @@ function guesty_create_booking_reservation_handler() {
 
     guesty_reservation_set_origin_note($token, $reservation_id);
 
-    // Resolve payment provider and log WHERE it came from, so a wrong/missing
-    // provider (a known cause of "reservation created without payment method")
-    // is diagnosable from the logs alone.
+    // Log where the provider came from — a wrong/missing provider is a known
+    // cause of "reservation created without payment method".
     if ($frontend_provider) {
         $provider_id     = $frontend_provider;
         $provider_source = 'frontend';
@@ -613,9 +598,7 @@ function guesty_create_booking_reservation_handler() {
     }
     guesty_log('payment_provider_resolved', 'Res: ' . $reservation_id . ' | Provider: ' . ($provider_id ?: '(none)') . ' | Source: ' . $provider_source . ' | Listing: ' . $listing_id);
 
-    // No payment provider on this listing → no card can be attached. Per the
-    // agreed behavior, confirm the booking anyway and flag it for manual
-    // payment collection in Guesty.
+    // No provider → no card possible. Confirm anyway, flag for manual payment.
     if (!$provider_id) {
         guesty_log('payment_method_attempt', 'Res: ' . $reservation_id . ' | Status: skipped | Reason: no_provider | Provider: (none)');
         $confirm = guesty_reservation_confirm($token, $reservation_id);
@@ -636,14 +619,11 @@ function guesty_create_booking_reservation_handler() {
         'reuse'             => true,
     ];
 
-    // Request body logged with the token redacted (PCI), but everything else
-    // intact. Tagging Res:<id> on every payment line so the full chain can be
-    // pulled per reservation regardless of how many rows are in the table.
+    // Token redacted in the log (PCI); Res: tag lets the whole chain be pulled per reservation.
     $pay_body_log = $pay_body;
     $pay_body_log['_id'] = substr($guesty_token, 0, 12) . '…';
     guesty_log('payment_method_request', 'Res: ' . $reservation_id . ' | GuestId: ' . $guest_id . ' | Provider: ' . $provider_id . ' | Body: ' . json_encode($pay_body_log));
 
-    // STEP 2: attach the card to the (still `reserved`) reservation.
     $pay_response = wp_remote_post(
         "https://open-api.guesty.com/v1/guests/{$guest_id}/payment-methods",
         [
@@ -675,8 +655,7 @@ function guesty_create_booking_reservation_handler() {
         guesty_log('payment_method_response', 'Res: ' . $reservation_id . ' | HTTP ' . $pay_code . ' | Body: ' . $pay_body_raw);
 
         if ($pay_code === 200 || $pay_code === 201) {
-            // A 2xx means Guesty accepted the request; confirm the method is
-            // actually ACTIVE (processor may reject silently).
+            // 2xx = accepted; still verify ACTIVE (processor may reject silently).
             $method_status = is_array($pay_data) ? strtoupper((string)($pay_data['status'] ?? '')) : '';
             $attach_ok     = ('ACTIVE' === $method_status) || ('' === $method_status);
             $pay_status    = $attach_ok ? 'success' : 'pending';
@@ -695,38 +674,28 @@ function guesty_create_booking_reservation_handler() {
             if (!$pay_err_msg) {
                 $pay_err_msg = 'Payment could not be attached (HTTP ' . $pay_code . ').';
             }
-            // Log full raw body too: Guesty 400s often hide the decline reason
-            // (3DS / Merchant Warrior auth / card decline) outside the standard
-            // error/message keys, so never truncate it away on failure.
+            // Keep full raw body — the decline reason (3DS / decline) often
+            // isn't in the standard error/message keys.
             guesty_log('payment_method_error', 'Res: ' . $reservation_id . ' | HTTP ' . $pay_code . ' | Error: ' . $pay_err_msg . ' | Raw: ' . $pay_body_raw);
         }
     }
 
-    // Single consolidated row that ALWAYS fires (success or failure), so the
-    // complete attach outcome for a reservation is guaranteed to be captured
-    // in one place even if other rows scroll out of the log viewer.
+    // Consolidated row that always fires, so the attach outcome is captured even
+    // if other rows scroll out of the log viewer.
     guesty_log('payment_method_attempt', 'Res: ' . $reservation_id . ' | Status: ' . $pay_status . ' | HTTP: ' . $pay_code . ' | Provider: ' . $provider_id . ' | Raw: ' . $pay_body_raw);
 
-    // Authoritative cross-check via the reservation itself (the attach response
-    // alone can be optimistic). Only bother if the attach looked OK.
-    if ($attach_ok && !guesty_reservation_has_active_payment_method($token, $reservation_id)) {
-        // Card not actually on the reservation → auto-payments would have no
-        // method to charge. Downgrade to pending so staff know to follow up,
-        // but (per agreed policy) still confirm the booking below.
-        $pay_status  = 'pending';
-        $pay_err_msg = $pay_err_msg ?: 'Card was not registered on the reservation.';
+    // Wait for the card to bind to the reservation before confirming, else the
+    // auto-payment schedule is built with no card.
+    if ($attach_ok) {
+        $bound = guesty_reservation_wait_for_payment_method($token, $reservation_id);
+        if (!$bound) {
+            $pay_status  = 'pending';
+            $pay_err_msg = $pay_err_msg ?: 'Card was not registered on the reservation in time; manual payment may be required.';
+        }
     }
 
-    // STEP 3: confirm the reservation. Because the card is already attached,
-    // Guesty's auto-payment automations now generate & charge per the property's
-    // payment rules (deposit at confirmation, balance before check-in, etc.).
-    // Policy (per client): ALWAYS confirm — a declined/failed card must never
-    // cancel or drop the booking. The backend team collects payment manually
-    // (e.g. via a payment link) in that case.
-    //
-    // Confirm is retried a few times because a transient failure here would
-    // otherwise leave the reservation in `reserved` (and it could later expire
-    // and be lost). Retrying makes "always confirmed" reliable.
+    // Confirm (always, per client policy — a failed card must never drop the
+    // booking). Retried because a transient failure would leave it `reserved`.
     $confirm = ['ok' => false, 'code' => 0, 'body' => ''];
     for ($attempt = 1; $attempt <= 3; $attempt++) {
         $confirm = guesty_reservation_confirm($token, $reservation_id);
@@ -734,14 +703,12 @@ function guesty_create_booking_reservation_handler() {
             break;
         }
         if ($attempt < 3) {
-            sleep(3); // brief backoff; Guesty needs a moment between updates
+            sleep(3);
         }
     }
 
     if (!$confirm['ok']) {
-        // Extremely rare: status update kept failing. Do NOT tell the guest to
-        // rebook (that would create duplicates). The reservation exists; alert
-        // the backend to finalize it manually.
+        // Don't tell the guest to rebook (avoids duplicates); flag for backend.
         guesty_log('reservation_confirm_failed_final', 'Res: ' . $reservation_id . ' | Confirm failed after 3 attempts | HTTP ' . $confirm['code'] . ' | Body: ' . $confirm['body']);
         $pay_status  = 'pending';
         $pay_err_msg = 'Booking received. Our team will finalize your confirmation shortly.';

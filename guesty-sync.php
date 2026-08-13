@@ -18,6 +18,7 @@ require_once GUESTY_SYNC_PATH . 'includes/admin-menu.php';
 require_once GUESTY_SYNC_PATH . 'includes/api.php';
 require_once GUESTY_SYNC_PATH . 'includes/cron.php';
 require_once GUESTY_SYNC_PATH . 'includes/ajax.php';
+require_once GUESTY_SYNC_PATH . 'includes/webhooks.php';
 require_once GUESTY_SYNC_PATH . 'includes/cpt-property.php';
 require_once GUESTY_SYNC_PATH . 'includes/sync-properties.php';
 require_once GUESTY_SYNC_PATH . 'includes/frontend/search-bar-code.php';
