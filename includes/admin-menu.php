@@ -109,6 +109,7 @@
     function guesty_register_booking_settings() {
         $g = 'guesty_booking_settings_group';
         register_setting($g, 'guesty_stripe_payment_provider_id', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting($g, 'guesty_booking_auto_charge', ['sanitize_callback' => 'guesty_sanitize_auto_charge_mode']);
         register_setting($g, 'guesty_booking_terms_url', ['sanitize_callback' => 'esc_url_raw']);
         register_setting($g, 'guesty_booking_privacy_url', ['sanitize_callback' => 'esc_url_raw']);
         register_setting($g, 'guesty_booking_policies_html', ['sanitize_callback' => 'wp_kses_post']);
@@ -116,10 +117,16 @@
         register_setting($g, 'guesty_booking_policies_term_link', ['sanitize_callback' => 'esc_url_raw']);
     }
     add_action('admin_init', 'guesty_register_booking_settings');
+
+    function guesty_sanitize_auto_charge_mode($value) {
+        return in_array($value, ['follow', 'always', 'off'], true) ? $value : 'off';
+    }
+
     function guesty_render_booking_settings() {
         wp_enqueue_editor();
 
         $provider_id              = get_option('guesty_stripe_payment_provider_id', '');
+        $auto_charge              = function_exists('guesty_booking_auto_charge_mode') ? guesty_booking_auto_charge_mode() : 'off';
         $terms_url                = get_option('guesty_booking_terms_url', '');
         $privacy_url              = get_option('guesty_booking_privacy_url', '');
         $policies_html            = (string) get_option('guesty_booking_policies_html', '');
@@ -171,6 +178,19 @@
                     <td>
                         <input type="text" class="regular-text" name="guesty_stripe_payment_provider_id" value="<?php echo esc_attr($provider_id); ?>" placeholder="5fe4b21675087f01a3c5ab5b" />
                         <p class="description">The Guesty payment provider ID used by GuestyPay. Find this in Guesty &rsaquo; Settings &rsaquo; Payment Providers. If left blank, the plugin will attempt to auto-detect it from the listing or account default.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Payment Collection</th>
+                    <td>
+                        <select name="guesty_booking_auto_charge">
+                            <option value="off" <?php selected($auto_charge, 'off'); ?>>Let Guesty manage payments (recommended)</option>
+                            <option value="follow" <?php selected($auto_charge, 'follow'); ?>>Charge only if no Guesty automation applies</option>
+                            <option value="always" <?php selected($auto_charge, 'always'); ?>>Always collect the balance at booking</option>
+                        </select>
+                        <p class="description">
+                            <strong>Let Guesty manage</strong> (current policy): the website only tokenises and attaches the card to the reservation before confirmation. Guesty&rsquo;s payment automations create and collect the schedule &mdash; the site never charges the card.
+                        </p>
                     </td>
                 </tr>
                 <tr>
@@ -551,24 +571,123 @@
      */
     function guesty_sync_logs_page() {
         global $wpdb;
+        
+        // Get filters from request
+        $from_date = isset($_GET['from_date']) ? sanitize_text_field($_GET['from_date']) : '';
+        $to_date = isset($_GET['to_date']) ? sanitize_text_field($_GET['to_date']) : '';
+        $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
+        $log_type_filter = isset($_GET['log_type']) ? sanitize_text_field($_GET['log_type']) : '';
+        
+        // Get all unique log types for dropdown
+        $all_log_types = $wpdb->get_col(
+            "SELECT DISTINCT log_type FROM {$wpdb->prefix}guesty_sync_logs 
+             ORDER BY log_type ASC"
+        );
+        
+        $where_clause = "WHERE 1=1";
+        
+        // Date filter
+        if ($from_date && $to_date) {
+            $where_clause .= $wpdb->prepare(
+                " AND DATE(created_at) BETWEEN %s AND %s",
+                $from_date,
+                $to_date
+            );
+        }
+        
+        // Search filter (searches in both message and log_type)
+        if ($search) {
+            $where_clause .= $wpdb->prepare(
+                " AND (message LIKE %s OR log_type LIKE %s)",
+                '%' . $wpdb->esc_like($search) . '%',
+                '%' . $wpdb->esc_like($search) . '%'
+            );
+        }
+        
+        // Log type filter
+        if ($log_type_filter) {
+            $where_clause .= $wpdb->prepare(
+                " AND log_type = %s",
+                $log_type_filter
+            );
+        }
+        
         $logs = $wpdb->get_results(
             "SELECT * FROM {$wpdb->prefix}guesty_sync_logs
-             WHERE message NOT LIKE 'Cron: Property % synchronized successfully.'
-             ORDER BY id DESC LIMIT 250"
+             {$where_clause}
+             ORDER BY id DESC LIMIT 100"
         );
 
-        echo '<div class="wrap"><h1>Sync Logs</h1><table class="widefat">';
-        echo '<tr><th>Type</th><th>Message</th><th>Date</th></tr>';
+        echo '<div class="wrap"><h1>Guesty Sync Logs</h1>';
+        
+        // Filter form
+        echo '<form method="get" style="margin-bottom: 20px; background: #fff; padding: 15px; border: 1px solid #ccd0d4; border-radius: 4px;">';
+        echo '<input type="hidden" name="page" value="guesty-sync-logs" />';
+        
+        echo '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">';
+        
+        // Date filters
+        echo '<div>';
+        echo '<label style="display: block; margin-bottom: 5px; font-weight: 600;">From Date:</label>';
+        echo '<input type="date" name="from_date" value="' . esc_attr($from_date) . '" style="width: 100%;" />';
+        echo '</div>';
+        
+        echo '<div>';
+        echo '<label style="display: block; margin-bottom: 5px; font-weight: 600;">To Date:</label>';
+        echo '<input type="date" name="to_date" value="' . esc_attr($to_date) . '" style="width: 100%;" />';
+        echo '</div>';
+        
+        // Log type dropdown
+        echo '<div>';
+        echo '<label style="display: block; margin-bottom: 5px; font-weight: 600;">Log Type:</label>';
+        echo '<select name="log_type" style="width: 100%;">';
+        echo '<option value="">All Types</option>';
+        foreach ($all_log_types as $type) {
+            $selected = ($log_type_filter === $type) ? 'selected' : '';
+            echo '<option value="' . esc_attr($type) . '" ' . $selected . '>' . esc_html($type) . '</option>';
+        }
+        echo '</select>';
+        echo '</div>';
+        
+        // Search box
+        echo '<div>';
+        echo '<label style="display: block; margin-bottom: 5px; font-weight: 600;">Search:</label>';
+        echo '<input type="text" name="search" value="' . esc_attr($search) . '" placeholder="Search in message or type..." style="width: 100%;" />';
+        echo '</div>';
+        
+        echo '</div>';
+        
+        // Buttons
+        echo '<div>';
+        echo '<button type="submit" class="button button-primary">Apply Filters</button> ';
+        if ($from_date || $to_date || $search || $log_type_filter) {
+            echo '<a href="?page=guesty-sync-logs" class="button">Clear All Filters</a>';
+        }
+        echo '</div>';
+        
+        echo '</form>';
+        
+        // Results count
+        echo '<p style="margin-bottom: 10px;"><strong>' . count($logs) . '</strong> log(s) found</p>';
+        
+        echo '<div style="overflow-x: auto;">';
+        echo '<table class="widefat striped" style="table-layout: fixed; width: 100%;">';
+        echo '<thead><tr><th style="width: 200px;">Type</th><th style="width: auto;">Message</th><th style="width: 180px;">Date</th></tr></thead>';
+        echo '<tbody>';
 
-        foreach ($logs as $log) {
-            echo "<tr>
-                <td>{$log->log_type}</td>
-                <td>{$log->message}</td>
-                <td>{$log->created_at}</td>
-            </tr>";
+        if (empty($logs)) {
+            echo '<tr><td colspan="3" style="text-align: center; padding: 20px;">No logs found matching your filters.</td></tr>';
+        } else {
+            foreach ($logs as $log) {
+                echo "<tr>
+                    <td style='word-wrap: break-word; overflow-wrap: break-word;'><code>" . esc_html($log->log_type) . "</code></td>
+                    <td style='word-wrap: break-word; overflow-wrap: break-word; white-space: normal;'>" . esc_html($log->message) . "</td>
+                    <td style='word-wrap: break-word; overflow-wrap: break-word;'>" . esc_html($log->created_at) . "</td>
+                </tr>";
+            }
         }
 
-        echo '</table></div>';
+        echo '</tbody></table></div></div>';
     }
 
     /**

@@ -529,9 +529,18 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 <?php } ?>
 
 <script>
+    let minNightsMap = {};
+    let maxNightsMap = {};
+        
 	document.addEventListener('DOMContentLoaded', function() {
 		// 1. Create a variable in this scope to hold the dates
 		let fetchedBlockedDates = [];
+        let noCheckinDates = [];
+        let noCheckoutDates = [];
+        let currentStartDate = null;
+        let currentEndDate = null;
+        let currentMaxDate = null;
+        let activeLockDays = [];
 		const today = new Date();
 		const maxDate = new Date();
 		maxDate.setFullYear(today.getFullYear() + 2);
@@ -543,6 +552,12 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 				.filter(d => d.getTime() > startTime)
 				.sort((a, b) => a - b)[0] || null;
 		}
+		function clearAllTooltips() {
+            document.querySelectorAll('.litepicker .day-item.is-blocked-tooltip').forEach(function(el) {
+                el.removeAttribute('title');
+                el.classList.remove('is-blocked-tooltip');
+            });
+        }
 		const booking_button = document.querySelector('.booking-btn');
 		const picker = new Litepicker({
 			element: document.getElementById('booking_checkin_date_display'),
@@ -555,7 +570,7 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			minDate: today,
 			maxDate: maxDate,
 			format: 'DD MMM, YYYY',
-			disallowLockDaysInRange: true,
+			disallowLockDaysInRange: false,
 			showTooltip: true,
 			tooltipNumber: (totalDays) => {
 				return totalDays - 1;
@@ -564,10 +579,23 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 				one: 'day',
 				other: 'days'
 			},
+            lockDaysFilter: (date1) => {
+                if (!date1) return false;
+                const dateStr = date1.format('YYYY-MM-DD');
+        
+                if (!currentStartDate) {
+                    // No check-in picked yet — evaluating as a potential check-in
+                    return noCheckinDates.includes(dateStr);
+                }
+                // Check-in already picked — evaluating as a potential checkout
+                return noCheckoutDates.includes(dateStr);
+            },
 			setup: (picker) => {
 				// 1. DYNAMICALLY RESTRICT CHECK-OUT RANGE
 				picker.on('preselect', (date1) => {
 					if (!date1) return;
+					currentStartDate = date1.format('YYYY-MM-DD');
+					currentEndDate = null;
 					// Check if the next 3 days are blocked
 					let activeLockDays = [...fetchedBlockedDates];
 					const blockingDate = [1, 2, 3].map(offset =>
@@ -581,12 +609,34 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 							resetView: false
 						});
 					}
-					const guestyMinNights = parseInt("<?php echo (int) get_post_meta(get_the_ID(), 'guesty_minNights', true); ?>", 10) || 1;
-					const guestyMaxNights = parseInt("<?php echo (int) get_post_meta(get_the_ID(), 'guesty_maxNights', true); ?>", 10) || 1;
+					const staticFallbackMin = parseInt("<?php echo (int) get_post_meta(get_the_ID(), 'guesty_minNights', true); ?>", 10) || 1;
+					const staticFallbackMax = parseInt("<?php echo (int) get_post_meta(get_the_ID(), 'guesty_maxNights', true); ?>", 10) || 1;
+					
+					const dateKey = date1.format('YYYY-MM-DD');
+                    const guestyMinNights = minNightsMap[dateKey] ?? staticFallbackMin;
+                    const guestyMaxNights = maxNightsMap[dateKey] ?? staticFallbackMax;
+					
+					// ---- CHECK FOR A LOCKED DATE BETWEEN check-in AND check-in + maxDays ----
+                    let cappedMaxDate = date1.clone().add(guestyMaxNights + 1, 'day'); // default window end
+                
+                    for (let i = 1; i <= guestyMaxNights + 1; i++) {
+                        const candidate = date1.clone().add(i, 'day');
+                        const candidateStr = candidate.format('YYYY-MM-DD');
+                        if (activeLockDays.includes(candidateStr)) {
+                            // Found a locked date inside the max-days window — cap the window
+                            // to the day BEFORE the locked date, so checkout can't reach past it.
+                            cappedMaxDate = date1.clone().add(i - 1, 'day');
+                            break;
+                        }
+                    }
+                    
+                    currentMaxDate = cappedMaxDate.format('YYYY-MM-DD');
+                    
 					picker.setOptions({
 						minDays: guestyMinNights + 1,
 						maxDays: guestyMaxNights + 1,
 						minDate: date1.clone(),
+						maxDate: cappedMaxDate,
 						resetView: false
 					});
 					picker.gotoDate(date1);
@@ -595,13 +645,19 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 				// 2. HANDLE FINAL SELECTION
 				picker.on('selected', (start, end) => {
 					if (!end) return;
+					clearAllTooltips();
 					const startStr = start.format('YYYY-MM-DD');
 					const endStr = end.format('YYYY-MM-DD');
 					document.getElementById('booking_checkin_date').value = startStr;
 					document.getElementById('booking_checkout_date').value = endStr;
+					currentStartDate = startStr;
+                    currentEndDate = endStr;
+                    currentMaxDate = null;
+					activeLockDays = [...fetchedBlockedDates];
 					picker.setOptions({
 						lockDays: fetchedBlockedDates,
 						minDate: today,
+						maxDate: maxDate,
 						minDays: null,
 						maxDays: null,
 						resetView: false
@@ -615,9 +671,15 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 
 				// 3. RESET LOCKS & LIMITS IF SELECTION IS CLEARED
 				picker.on('clear:selection', () => {
+				    clearAllTooltips();
+				    currentStartDate = null;
+                    currentEndDate = null;
+                    currentMaxDate = null;
+                    activeLockDays = [...fetchedBlockedDates];
 					picker.setOptions({
 						lockDays: fetchedBlockedDates,
 						minDate: today,
+						maxDate: maxDate,
 						minDays: null,
 						maxDays: null,
 						resetView: false
@@ -627,14 +689,83 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 					booking_button.innerText = 'SELECT DATES';
 				});
 
-			picker.on('hide', () => {
-				const start = picker.getStartDate();
-				const end = picker.getEndDate();
-				// If only one date selected OR no full range selected
-				if (!start || !end) {
-					picker.clearSelection();
-				}
-			});
+    			picker.on('hide', () => {
+    				const start = picker.getStartDate();
+    				const end = picker.getEndDate();
+    				// If only one date selected OR no full range selected
+    				if (!start || !end) {
+    					picker.clearSelection();
+    				}
+    			});
+    			
+    			// 4. TOOLTIP ON BLOCKED DAYS
+                picker.on('render:day', function(...args) {
+                    let day, date;
+                    for (const arg of args) {
+                        if (arg instanceof HTMLElement) day = arg;
+                        else if (arg && typeof arg.format === 'function') date = arg;
+                    }
+                    if (!day || !date) return;
+                
+                    const dateStr = date.format('YYYY-MM-DD');
+                    const isMidSelection = currentStartDate && !currentEndDate;
+                    // NEW — trust Litepicker's own lock state first.
+                    // If it's not locked, there is NO reason to show a tooltip — clear and stop, always.
+                    if (!day.classList.contains('is-locked')) {
+                        day.removeAttribute('title');
+                        day.classList.remove('is-blocked-tooltip');
+                        return;
+                    }
+                
+                    // Case 1: blocked date
+                    if (activeLockDays.includes(dateStr)) {
+                        day.setAttribute('title', 'This date is unavailable');
+                        day.classList.add('is-blocked-tooltip');
+                        return;
+                    }
+                
+                    // Case 2: no check-in picked yet
+                    if (!currentStartDate && noCheckinDates.includes(dateStr)) {
+                        day.setAttribute('title', 'Check-in is not allowed on this day');
+                        day.classList.add('is-blocked-tooltip');
+                        return;
+                    }
+                
+                    // Case 3: mid-selection, checking noCheckoutDates
+                    if (isMidSelection && noCheckoutDates.includes(dateStr)) {
+                        day.setAttribute('title', 'Checkout is not allowed on this day');
+                        day.classList.add('is-blocked-tooltip');
+                        return;
+                    }
+                
+                    // Case 4: mid-selection, min-nights check — plain Date math, no DateTime chaining
+                    if (isMidSelection) {
+                        const staticFallbackMin = parseInt("<?php echo (int) get_post_meta(get_the_ID(), 'guesty_minNights', true); ?>", 10) || 1;
+                        const guestyMinNights = minNightsMap[currentStartDate] ?? staticFallbackMin;
+                
+                        const startObj = new Date(currentStartDate + 'T00:00:00');
+                        const minCheckoutObj = new Date(startObj);
+                        minCheckoutObj.setDate(minCheckoutObj.getDate() + guestyMinNights + 1);
+                
+                        const dateObj = new Date(dateStr + 'T00:00:00');
+                
+                        if (dateObj >= startObj && dateObj < minCheckoutObj && dateStr !== currentStartDate) {
+                            day.setAttribute('title', `Minimum stay is ${guestyMinNights} night${guestyMinNights > 1 ? 's' : ''}`);
+                            day.classList.add('is-blocked-tooltip');
+                            return;
+                        }
+                    }
+                    
+                    // Case 5: NEW — beyond the capped max-date window
+                    if (isMidSelection && currentMaxDate && dateStr > currentMaxDate) {
+                        day.setAttribute('title', 'This date is unavailable');
+                        day.classList.add('is-blocked-tooltip');
+                        return;
+                    }
+                
+                    day.removeAttribute('title');
+                    day.classList.remove('is-blocked-tooltip');
+                });
 			}
 		});
 
@@ -651,17 +782,19 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			try {
 				const response = await fetch(`<?php echo admin_url('admin-ajax.php'); ?>?action=get_blocked_dates&listing_id=${listingId}`);
 				const result = await response.json();
-
-				if (result.success && result.data.length > 0) {
-					// UPDATE THE LOCAL VARIABLE FIRST
-					fetchedBlockedDates = result.data;
-
-					// Then update the picker - this triggers 'render:day' automatically
-					picker.setOptions({
-						lockDays: result.data,
-						resetView: false
-					});
-				}
+				if (result.success && result.data) {
+                    fetchedBlockedDates = result.data.blocked_dates || [];
+                    noCheckinDates      = result.data.no_checkin_dates || [];
+                    noCheckoutDates     = result.data.no_checkout_dates || [];
+                    minNightsMap        = result.data.min_nights_map || {};
+                    maxNightsMap        = result.data.max_nights_map || {};
+                    activeLockDays      = [...fetchedBlockedDates];
+                    
+                    picker.setOptions({
+                        lockDays: fetchedBlockedDates,
+                        resetView: false
+                    });
+                }
 			} catch (e) {
 				console.error("Failed to load Guesty dates", e);
 			}
@@ -758,7 +891,12 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 		const booking_nights = document.getElementById('booking_nights');
 		const booking_guests = document.getElementById('booking_guests');
 		const change_btn = document.querySelector('.change-btn');
-
+        
+        const staticFallbackMin = parseInt("<?php echo (int) get_post_meta(get_the_ID(), 'guesty_minNights', true); ?>", 10) || 1;
+		const staticFallbackMax = parseInt("<?php echo (int) get_post_meta(get_the_ID(), 'guesty_maxNights', true); ?>", 10) || 1;
+		
+        const guestyMinNights = minNightsMap[checkIn] ?? staticFallbackMin;
+        const guestyMaxNights = maxNightsMap[checkIn] ?? staticFallbackMax;
 
 		if (!checkIn || !checkOut) {
 			notifyText.textContent = "Please select your dates first.";
@@ -2296,6 +2434,38 @@ $icon_url_full = $icon_id ? wp_get_attachment_image_url($icon_id, 'full') : '';
 			top: 50% !important;
 		}
 	}
+	
+.litepicker .day-item.is-locked {
+    pointer-events: auto !important;
+    cursor: not-allowed;
+}
+.litepicker .day-item.is-blocked-tooltip {
+    position: relative;
+}
+.litepicker .day-item.is-blocked-tooltip::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.3;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 20;
+}
+
+.litepicker .day-item.is-blocked-tooltip:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
 </style>
 
 <link rel="stylesheet" href="<?php echo plugin_dir_url(__FILE__); ?>css/fancybox.css" />

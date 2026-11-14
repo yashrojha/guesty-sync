@@ -16,6 +16,7 @@ add_image_size('guesty_large', 900, 0, false);
 
 require_once GUESTY_SYNC_PATH . 'includes/admin-menu.php';
 require_once GUESTY_SYNC_PATH . 'includes/api.php';
+require_once GUESTY_SYNC_PATH . 'includes/payments.php';
 require_once GUESTY_SYNC_PATH . 'includes/cron.php';
 require_once GUESTY_SYNC_PATH . 'includes/ajax.php';
 require_once GUESTY_SYNC_PATH . 'includes/webhooks.php';

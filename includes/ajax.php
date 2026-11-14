@@ -337,18 +337,25 @@ function ajax_get_guesty_dates() {
         wp_send_json_error('ID missing');
     }
 
-    $blocked_days = get_guesty_booking_blocked_dates($listing_id);
-    wp_send_json_success($blocked_days);
+    $result = get_guesty_booking_blocked_dates($listing_id);
+    wp_send_json_success($result);
 }
 function get_guesty_booking_blocked_dates($listing_id) {
     $cache_key = 'guesty_calendar_' . $listing_id;
-    $blocked_dates = get_transient($cache_key);
+    $empty_result = [
+        'blocked_dates'     => [],
+        'no_checkin_dates'  => [],
+        'no_checkout_dates' => [],
+        'min_nights_map' => [],
+        'max_nights_map' => [],
+    ];
+    $result = get_transient($cache_key);
 
-    if (false === $blocked_dates) {
+    if (false === $result) {
         $token = guesty_get_token();
         if (!$token) {
             guesty_log('Guesty Error', 'Token missing');
-            return [];
+            return $empty_result;
         }
 
         $from = date('Y-m-d');
@@ -365,30 +372,56 @@ function get_guesty_booking_blocked_dates($listing_id) {
 
         if (is_wp_error($cal_response)) {
             guesty_log('Guesty', 'Guesty API Connection Error: ' . $cal_response->get_error_message());
-            return [];
+            return $empty_result;
         }
 
         $body = wp_remote_retrieve_body($cal_response);
         $response = json_decode($body);
 		
         $blocked_dates = [];
+        $no_checkin_dates = [];
+        $no_checkout_dates = [];
+        $min_nights_map = [];
+        $max_nights_map = [];
 
         if (isset($response->status) && $response->status === 200 && isset($response->data->days) && is_array($response->data->days)) {
             foreach ($response->data->days as $day) {
                 $isUnavailable = (isset($day->status) && $day->status !== 'available');
-                $isClosedToArrival = (isset($day->cta) && $day->cta === true);
+                $isClosedToArrival   = (isset($day->cta) && $day->cta === true);
+                $isClosedToDeparture = (isset($day->ctd) && $day->ctd === true);
 
-                if ($isUnavailable || $isClosedToArrival) {
+                if ($isUnavailable) {
                     $blocked_dates[] = $day->date;
+                }
+                if ($isClosedToArrival) {
+                    $no_checkin_dates[] = $day->date;
+                }
+                if ($isClosedToDeparture) {
+                    $no_checkout_dates[] = $day->date;
+                }
+                if (isset($day->minNights)) {
+                    $min_nights_map[$day->date] = (int) $day->minNights;
+                }
+                if (isset($day->maxNights)) {
+                    $max_nights_map[$day->date] = (int) $day->maxNights;
                 }
             }
         } else {
 			guesty_log('Guesty Error', 'Guesty API Data Error: Received ' . $body);
         }
-        set_transient($cache_key, $blocked_dates, HOUR_IN_SECONDS);
+        
+        $result = [
+            'blocked_dates'     => $blocked_dates,
+            'no_checkin_dates'  => $no_checkin_dates,
+            'no_checkout_dates' => $no_checkout_dates,
+            'min_nights_map'    => $min_nights_map,
+            'max_nights_map'    => $max_nights_map,
+        ];
+
+        set_transient($cache_key, $result, HOUR_IN_SECONDS);
     }
 
-    return $blocked_dates;
+    return $result;
 }
 
 add_action('wp_ajax_guesty_check_availability', 'guesty_check_availability_handler');
@@ -587,6 +620,13 @@ function guesty_create_booking_reservation_handler() {
 
     guesty_reservation_set_origin_note($token, $reservation_id);
 
+    // The payment chain below deliberately waits on Guesty, so give PHP room and
+    // cap the wait so the guest isn't left on a spinner until a gateway timeout.
+    if (function_exists('set_time_limit')) {
+        @set_time_limit(180);
+    }
+    $deadline = time() + max(20, (int) apply_filters('guesty_booking_payment_budget', 60));
+
     // Log where the provider came from — a wrong/missing provider is a known
     // cause of "reservation created without payment method".
     if ($frontend_provider) {
@@ -612,85 +652,73 @@ function guesty_create_booking_reservation_handler() {
         ]);
     }
 
-    $pay_body = [
-        '_id'               => $guesty_token,
-        'paymentProviderId' => $provider_id,
-        'reservationId'     => $reservation_id,
-        'reuse'             => true,
+    // reservations-v3 writes replicate to the legacy /v1 store asynchronously,
+    // and it's the legacy store the payment endpoints validate against. Attaching
+    // before it catches up is what returned 400 "Reservation not found" and left
+    // bookings with no card — Guesty then builds its payment schedule without one.
+    $readable = guesty_wait_for_reservation_readable($token, $reservation_id, $deadline);
+
+    // Guesty automations need the card on the *reservation* at confirm time.
+    // Always attach with reservationId when readable; guest-level-only is a last
+    // resort so the one-shot token isn't wasted if replication is still lagging.
+    $attach = [
+        'ok'        => false,
+        'code'      => 0,
+        'raw'       => '',
+        'retryable' => false,
+        'methodId'  => '',
+        'method'    => '',
+        'error'     => $readable ? '' : 'Reservation not yet readable for payment attach.',
     ];
 
-    // Token redacted in the log (PCI); Res: tag lets the whole chain be pulled per reservation.
-    $pay_body_log = $pay_body;
-    $pay_body_log['_id'] = substr($guesty_token, 0, 12) . '…';
-    guesty_log('payment_method_request', 'Res: ' . $reservation_id . ' | GuestId: ' . $guest_id . ' | Provider: ' . $provider_id . ' | Body: ' . json_encode($pay_body_log));
+    if ($readable) {
+        $attach = guesty_attach_payment_method(
+            $token,
+            $guest_id,
+            $provider_id,
+            $guesty_token,
+            $reservation_id,
+            $deadline
+        );
+    }
 
-    $pay_response = wp_remote_post(
-        "https://open-api.guesty.com/v1/guests/{$guest_id}/payment-methods",
-        [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $token,
-                'Content-Type'  => 'application/json',
-                'accept'        => 'application/json',
-            ],
-            'body'    => json_encode($pay_body),
-            'timeout' => 30,
-        ]
-    );
+    if (!$attach['ok']) {
+        guesty_log('payment_method_fallback', 'Res: ' . $reservation_id . ' | Saving card on guest (no reservationId) so the token is not wasted');
+        $attach = guesty_attach_payment_method($token, $guest_id, $provider_id, $guesty_token, '', $deadline);
+    }
 
-    $pay_status   = 'pending';
-    $pay_err_msg  = '';
-    $pay_code     = 0;
-    $pay_body_raw = '';
-    $attach_ok    = false;
+    $method_id   = $attach['methodId'];
+    $method_name = $attach['method'];
+    $pay_err_msg = $attach['ok'] ? '' : $attach['error'];
 
-    if (is_wp_error($pay_response)) {
-        $pay_err_msg  = 'Payment attachment failed (network error).';
-        $pay_body_raw = 'WP_Error: ' . $pay_response->get_error_message();
-        guesty_log('payment_method_error', 'Res: ' . $reservation_id . ' | ' . $pay_body_raw);
-    } else {
-        $pay_code     = wp_remote_retrieve_response_code($pay_response);
-        $pay_body_raw = wp_remote_retrieve_body($pay_response);
-        $pay_data     = json_decode($pay_body_raw, true);
-
-        guesty_log('payment_method_response', 'Res: ' . $reservation_id . ' | HTTP ' . $pay_code . ' | Body: ' . $pay_body_raw);
-
-        if ($pay_code === 200 || $pay_code === 201) {
-            // 2xx = accepted; still verify ACTIVE (processor may reject silently).
-            $method_status = is_array($pay_data) ? strtoupper((string)($pay_data['status'] ?? '')) : '';
-            $attach_ok     = ('ACTIVE' === $method_status) || ('' === $method_status);
-            $pay_status    = $attach_ok ? 'success' : 'pending';
-            if (!$attach_ok) {
-                $pay_err_msg = 'Card attached but not ACTIVE (status: ' . $method_status . ').';
-                guesty_log('payment_method_error', 'Res: ' . $reservation_id . ' | ' . $pay_err_msg . ' | Raw: ' . $pay_body_raw);
-            }
-        } else {
-            $pay_err_msg = '';
-            if (is_array($pay_data)) {
-                $pay_err_msg = $pay_data['error']['message']
-                    ?? $pay_data['errors'][0]['message']
-                    ?? $pay_data['message']
-                    ?? '';
-            }
-            if (!$pay_err_msg) {
-                $pay_err_msg = 'Payment could not be attached (HTTP ' . $pay_code . ').';
-            }
-            // Keep full raw body — the decline reason (3DS / decline) often
-            // isn't in the standard error/message keys.
-            guesty_log('payment_method_error', 'Res: ' . $reservation_id . ' | HTTP ' . $pay_code . ' | Error: ' . $pay_err_msg . ' | Raw: ' . $pay_body_raw);
+    // Guesty occasionally answers 2xx without echoing the record; resolve the
+    // method ID off the guest when needed (logging / optional site charge).
+    if ($attach['ok'] && !$method_id) {
+        $found = guesty_find_recent_active_payment_method(guesty_get_guest_payment_methods($token, $guest_id));
+        if ($found) {
+            $method_id   = (string) ($found['_id'] ?? '');
+            $method_name = strtoupper((string) ($found['method'] ?? ''));
+            guesty_log('payment_method_lookup', 'Res: ' . $reservation_id . ' | Resolved MethodId: ' . $method_id);
         }
     }
 
-    // Consolidated row that always fires, so the attach outcome is captured even
-    // if other rows scroll out of the log viewer.
-    guesty_log('payment_method_attempt', 'Res: ' . $reservation_id . ' | Status: ' . $pay_status . ' | HTTP: ' . $pay_code . ' | Provider: ' . $provider_id . ' | Raw: ' . $pay_body_raw);
+    // The card must be on the reservation *before* confirmation: Guesty builds
+    // its payment automation schedule at that moment, and a schedule created
+    // without a card stays pending forever and has to be fixed by hand.
+    $card_bound = false;
+    if ($attach['ok'] && $readable && time() < $deadline) {
+        $card_bound = guesty_reservation_wait_for_payment_method($token, $reservation_id, 6, 3);
+    }
 
-    // Wait for the card to bind to the reservation before confirming, else the
-    // auto-payment schedule is built with no card.
-    if ($attach_ok) {
-        $bound = guesty_reservation_wait_for_payment_method($token, $reservation_id);
-        if (!$bound) {
-            $pay_status  = 'pending';
-            $pay_err_msg = $pay_err_msg ?: 'Card was not registered on the reservation in time; manual payment may be required.';
+    if ($attach['ok'] && !$card_bound) {
+        guesty_log(
+            'payment_method_not_bound',
+            'Res: ' . $reservation_id
+                . ' | Card saved but not yet on the reservation before confirm.'
+                . ' Guesty automations may need the card assigned manually.'
+        );
+        if (!$pay_err_msg) {
+            $pay_err_msg = 'Card saved; Guesty may need the payment method assigned to scheduled payments.';
         }
     }
 
@@ -710,15 +738,62 @@ function guesty_create_booking_reservation_handler() {
     if (!$confirm['ok']) {
         // Don't tell the guest to rebook (avoids duplicates); flag for backend.
         guesty_log('reservation_confirm_failed_final', 'Res: ' . $reservation_id . ' | Confirm failed after 3 attempts | HTTP ' . $confirm['code'] . ' | Body: ' . $confirm['body']);
-        $pay_status  = 'pending';
         $pay_err_msg = 'Booking received. Our team will finalize your confirmation shortly.';
     }
+
+    // Site charge is off by default — Guesty payment automations collect.
+    // Optional follow/always modes still go through guesty_collect_reservation_balance.
+    $charge_mode = guesty_booking_auto_charge_mode();
+    $charge      = ['ok' => true, 'charged' => 0.0, 'skipped' => true, 'error' => '', 'retryable' => false];
+
+    if ('off' !== $charge_mode && $method_id && $confirm['ok']) {
+        sleep(guesty_payment_settle_delay());
+        $charge = guesty_collect_reservation_balance($token, $reservation_id, $method_id, $method_name, [
+            'listingId'              => $listing_id,
+            'cardBoundBeforeConfirm' => $card_bound,
+        ]);
+        if (!$charge['ok'] && !$pay_err_msg) {
+            $pay_err_msg = $charge['error'];
+        }
+    } elseif ('off' === $charge_mode) {
+        guesty_log('payment_charge_skipped', 'Res: ' . $reservation_id . ' | Guesty manages collection — site does not charge');
+    }
+
+    // success = card attached + reservation confirmed. When Guesty collects,
+    // binding before confirm is ideal but not required for guest success UI.
+    $pay_status = ($attach['ok'] && $confirm['ok'] && $charge['ok']) ? 'success' : 'pending';
+
+    $needs_confirm = !$confirm['ok'];
+    $needs_charge  = ('off' !== $charge_mode) && $method_id && !$charge['ok'] && ($charge['retryable'] || $needs_confirm);
+    if ($needs_confirm || $needs_charge) {
+        guesty_schedule_payment_retry([
+            'reservationId'   => $reservation_id,
+            'guestId'         => $guest_id,
+            'listingId'       => $listing_id,
+            'paymentMethodId' => $method_id,
+            'method'          => $method_name,
+            'cardBound'       => $card_bound,
+            'needsConfirm'    => $needs_confirm,
+            'needsCharge'     => $needs_charge,
+        ]);
+    }
+
+    guesty_log(
+        'booking_outcome',
+        'Res: ' . $reservation_id
+            . ' | Attach: ' . ($attach['ok'] ? 'ok' : 'failed')
+            . ' | Bound: ' . ($card_bound ? 'yes' : 'no')
+            . ' | Confirm: ' . ($confirm['ok'] ? 'ok' : 'failed')
+            . ' | Charge: ' . ($charge['skipped'] ? 'guesty-managed' : ($charge['ok'] ? 'ok ' . $charge['charged'] : 'failed'))
+            . ' | Mode: ' . $charge_mode
+            . ' | Status: ' . $pay_status
+    );
 
     wp_send_json_success([
         'reservationId'    => $reservation_id,
         'confirmationCode' => $confirmation_code,
-        // 'success' = card active & auto-payments will run; 'pending' = booking
-        // confirmed but payment needs manual attention.
+        // 'success' = card attached and booking confirmed (Guesty schedules collect);
+        // 'pending' = booking is in, payment needs manual attention.
         'paymentStatus'    => $pay_status,
         'paymentNote'      => $pay_err_msg ?: null,
     ]);

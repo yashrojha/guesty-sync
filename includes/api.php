@@ -314,6 +314,35 @@ function guesty_check_availability( $listing_id, $check_in, $check_out ) {
 
     $ci_ts = strtotime( $check_in );
     $co_ts = strtotime( $check_out );
+    $nights = ( $co_ts - $ci_ts ) / DAY_IN_SECONDS;
+
+    // NEW — pull min/max nights from the check-in day's record, if Guesty provides them
+    $ci_date_str = gmdate( 'Y-m-d', $ci_ts );
+    $min_nights  = null;
+    $max_nights  = null;
+    if ( isset( $day_map[ $ci_date_str ] ) ) {
+        $ci_day = $day_map[ $ci_date_str ];
+        if ( isset( $ci_day->minNights ) ) {
+            $min_nights = (int) $ci_day->minNights;
+        }
+        if ( isset( $ci_day->maxNights ) ) {
+            $max_nights = (int) $ci_day->maxNights;
+        }
+    }
+
+    // NEW — validate against min/max nights before checking each individual day
+    if ( $min_nights !== null && $nights < $min_nights ) {
+        return [
+            'available' => false,
+            'reason'    => "This property requires a minimum stay of {$min_nights} night" . ( $min_nights > 1 ? 's' : '' ) . " for the selected check-in date. Please extend your stay or choose different dates.",
+        ];
+    }
+    if ( $max_nights !== null && $max_nights > 0 && $nights > $max_nights ) {
+        return [
+            'available' => false,
+            'reason'    => "This property allows a maximum stay of {$max_nights} night" . ( $max_nights > 1 ? 's' : '' ) . " for the selected check-in date. Please shorten your stay or choose different dates.",
+        ];
+    }
 
     // Validate every night from check-in up to (but not including) check-out.
     for ( $ts = $ci_ts; $ts < $co_ts; $ts = strtotime( '+1 day', $ts ) ) {

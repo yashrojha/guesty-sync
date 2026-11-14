@@ -333,8 +333,10 @@ function guesty_sync_single_property_background($pid, $is_cron = true) {
     update_post_meta($post_id, 'guesty_sync_status', 'Completed');
 	update_option('guesty_last_sync', time());
     
-	// Skip per-property cron success logs — they flood Sync Logs.
-	if (!$is_cron) {
+	// Log both cron and manual property syncs
+	if ($is_cron) {
+		guesty_log('info', "Cron: Property $post_id synchronized successfully.");
+	} else {
 		guesty_log('info', "Manual: Property $post_id synchronized successfully.");
 	}
 }

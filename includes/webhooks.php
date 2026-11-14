@@ -74,13 +74,15 @@ function guesty_handle_payment_webhook($request) {
     $summary  = guesty_summarize_payment_webhook($event, $payment);
     $log_type = 'webhook_' . str_replace('.', '_', $event);
 
-    guesty_log(
-        $log_type,
-        'Res: ' . ($reservation_id ?: '(none)')
-            . ' | PaymentId: ' . ($payment_id ?: '(none)')
-            . ' | ' . $summary
-            . ' | Raw: ' . $raw
-    );
+    if ($event !== 'payments.overdue') {
+        guesty_log(
+            $log_type,
+            'Res: ' . ($reservation_id ?: '(none)')
+                . ' | PaymentId: ' . ($payment_id ?: '(none)')
+                . ' | ' . $summary
+                . ' | Raw: ' . $raw
+        );
+    }
 
     return new WP_REST_Response(['ok' => true], 200);
 }
