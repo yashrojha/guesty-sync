@@ -9,13 +9,18 @@ if (did_action('elementor/loaded')) {
 		}
 	}, 20);
 }
-$raw_region = $_GET['city'] ?? '';
-if (is_array($raw_region)) {
-	$region_parts = array_values(array_filter(array_map('sanitize_text_field', $raw_region)));
-	$region = implode(', ', $region_parts);
-} else {
-	$region = sanitize_text_field($raw_region);
+$guesty_search = function_exists('guesty_search_request')
+	? guesty_search_request()
+	: array('cities' => array(), 'property_ids' => array(), 'q' => '');
+$heading_parts = $guesty_search['cities'];
+foreach ($guesty_search['property_ids'] as $guesty_property_id) {
+	$heading_parts[] = get_the_title($guesty_property_id);
 }
+if ($guesty_search['q'] !== '') {
+	$heading_parts[] = $guesty_search['q'];
+}
+$archive_heading = $heading_parts ? implode(', ', $heading_parts) : 'ALL REGIONS';
+$searched_dates = !empty($_GET['checkIn']) && !empty($_GET['checkOut']);
 ?>
 <?php if (did_action('elementor/loaded')) { ?>
 	<div data-elementor-type="wp-post" data-elementor-id="<?php the_ID(); ?>" class="elementor elementor-<?php the_ID(); ?>">
@@ -30,7 +35,7 @@ if (is_array($raw_region)) {
 					</div>
 
 					<div class="archive-controls">
-						<span class="region-label"><?php if (!empty($region)) { echo strtoupper($region); } else { echo 'ALL REGIONS'; } ?></span>
+						<span class="region-label"><?php echo esc_html($archive_heading); ?></span>
 						<!-- <span class="filter-trigger">
 							<svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 21 21" fill="none">
 								<path d="M6.125 9.625H14.875V11.375H6.125V9.625ZM3.5 6.125H17.5V7.875H3.5V6.125ZM8.75 13.125H12.25V14.875H8.75V13.125Z" fill="black" />
@@ -125,8 +130,13 @@ if (is_array($raw_region)) {
 							<div class="guesty-no-results">
 								<div class="guesty-no-results-inner">
 									<span class="guesty-no-results-icon" aria-hidden="true">—</span>
+									<?php if ($searched_dates) : ?>
 									<h2 class="guesty-no-results-title">No properties available</h2>
 									<p class="guesty-no-results-message">Looks like we are fully booked for the dates chosen. Please try other dates. Thank you.</p>
+									<?php else : ?>
+									<h2 class="guesty-no-results-title">No properties match</h2>
+									<p class="guesty-no-results-message">Nothing matches that region or property. Try a different name.</p>
+									<?php endif; ?>
 									<a href="<?php echo esc_url( get_post_type_archive_link( 'properties' ) ); ?>" class="guesty-no-results-btn">Clear Searches</a>
 								</div>
 							</div>

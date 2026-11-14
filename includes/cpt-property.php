@@ -671,6 +671,161 @@ function get_guesty_property_cities() {
     return $cities;
 }
 
+// Published properties for the unified search field.
+// @return array<int, array{id:int,title:string,city:string,url:string}>
+function get_guesty_search_properties() {
+    global $wpdb;
+
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT p.ID, pm.meta_value AS city
+         FROM {$wpdb->posts} p
+         LEFT JOIN {$wpdb->postmeta} pm
+            ON pm.post_id = p.ID AND pm.meta_key = %s
+         WHERE p.post_type = %s
+           AND p.post_status = 'publish'
+         ORDER BY p.post_title ASC",
+        'guesty_address_city',
+        'properties'
+    ));
+
+    $items = array();
+    $seen = array();
+
+    foreach ((array) $rows as $row) {
+        $id = (int) $row->ID;
+        if (isset($seen[$id])) {
+            continue;
+        }
+        $seen[$id] = true;
+
+        $title = get_the_title($id);
+        $url = get_permalink($id);
+        if ($title === '' || !$url) {
+            continue;
+        }
+
+        $items[] = array(
+            'id'    => $id,
+            'title' => $title,
+            'city'  => is_string($row->city) ? $row->city : '',
+            'url'   => $url,
+            'image' => guesty_property_card_image($id),
+        );
+    }
+
+    return $items;
+}
+
+// Property IDs whose title or region contains the search term.
+// @return int[]
+function guesty_property_ids_for_term($term) {
+    global $wpdb;
+
+    $term = trim((string) $term);
+    if ($term === '') {
+        return array();
+    }
+
+    $like = '%' . $wpdb->esc_like($term) . '%';
+    $ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT DISTINCT p.ID
+         FROM {$wpdb->posts} p
+         LEFT JOIN {$wpdb->postmeta} pm
+            ON pm.post_id = p.ID AND pm.meta_key = %s
+         WHERE p.post_type = %s
+           AND p.post_status = 'publish'
+           AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)",
+        'guesty_address_city',
+        'properties',
+        $like,
+        $like
+    ));
+
+    return array_values(array_filter(array_map('intval', (array) $ids)));
+}
+
+// Featured image, or the first gallery image when a property has no thumbnail.
+function guesty_property_card_image($post_id) {
+    $thumb = get_the_post_thumbnail_url($post_id, 'thumbnail');
+    if ($thumb) {
+        return $thumb;
+    }
+
+    $gallery = get_post_meta($post_id, 'guesty_gallery_ids', true);
+    if (is_string($gallery)) {
+        $gallery = array_filter(array_map('trim', explode(',', $gallery)));
+    }
+    if (!is_array($gallery)) {
+        return '';
+    }
+
+    foreach ($gallery as $img_id) {
+        $img_id = (int) $img_id;
+        if (!$img_id) {
+            continue;
+        }
+        $url = wp_get_attachment_image_url($img_id, 'thumbnail');
+        if (!$url) {
+            $url = wp_get_attachment_image_url($img_id, 'medium');
+        }
+        if ($url) {
+            return $url;
+        }
+    }
+
+    return '';
+}
+
+// Published property IDs in any of the given region names.
+function guesty_property_ids_for_cities($cities) {
+    global $wpdb;
+
+    $cities = array_values(array_filter(array_map('strval', (array) $cities)));
+    if (empty($cities)) {
+        return array();
+    }
+
+    $placeholders = implode(',', array_fill(0, count($cities), '%s'));
+    $sql = "SELECT DISTINCT p.ID
+         FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
+         WHERE pm.meta_key = %s
+           AND p.post_type = %s
+           AND p.post_status = 'publish'
+           AND pm.meta_value IN ($placeholders)";
+    $params = array_merge(array('guesty_address_city', 'properties'), $cities);
+    $ids = $wpdb->get_col($wpdb->prepare($sql, $params));
+
+    return array_values(array_filter(array_map('intval', (array) $ids)));
+}
+
+// Cities, property IDs, and free-text query from the current search request.
+function guesty_search_request() {
+    $raw_cities = isset($_GET['city']) ? wp_unslash($_GET['city']) : array();
+    if (!is_array($raw_cities)) {
+        $raw_cities = ($raw_cities === '' || $raw_cities === null) ? array() : array($raw_cities);
+    }
+    $cities = array_values(array_filter(array_map('sanitize_text_field', $raw_cities)));
+
+    $raw_ids = isset($_GET['property_id']) ? wp_unslash($_GET['property_id']) : array();
+    if (!is_array($raw_ids)) {
+        $raw_ids = ($raw_ids === '' || $raw_ids === null) ? array() : array($raw_ids);
+    }
+    $property_ids = array();
+    foreach ($raw_ids as $raw_id) {
+        $id = absint($raw_id);
+        if ($id && get_post_type($id) === 'properties' && get_post_status($id) === 'publish') {
+            $property_ids[] = $id;
+        }
+    }
+
+    return array(
+        'cities'       => $cities,
+        'property_ids' => array_values(array_unique($property_ids)),
+        'q'            => isset($_GET['q']) ? sanitize_text_field(wp_unslash($_GET['q'])) : '',
+    );
+}
+
 // Get all 'properties' post type
 // @return array List of post id
 function get_guesty_properties_list() {

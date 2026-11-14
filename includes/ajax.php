@@ -240,27 +240,57 @@ function guesty_archive_filter($query) {
 		
 		$meta_query = array('relation' => 'AND');
 
-        if (isset($_GET['city']) && !empty($_GET['city'])) {
-            $raw_cities = $_GET['city'];
-            if (!is_array($raw_cities)) {
-                $raw_cities = [$raw_cities];
-            }
-            $cities_clean = array_values(array_filter(array_map('sanitize_text_field', $raw_cities)));
+        $search = function_exists('guesty_search_request')
+            ? guesty_search_request()
+            : array('cities' => array(), 'property_ids' => array(), 'q' => '');
+        $cities_clean = $search['cities'];
+        $property_ids = $search['property_ids'];
+        $search_term = $search['q'];
+        $selection_count = count($property_ids) + (!empty($cities_clean) ? 1 : 0) + ($search_term !== '' ? 1 : 0);
 
-            if (!empty($cities_clean)) {
-                if (count($cities_clean) === 1) {
-                    $meta_query[] = array(
-                        'key'     => 'guesty_address_city',
-                        'value'   => $cities_clean[0],
-                        'compare' => 'LIKE',
-                    );
-                } else {
-                    $meta_query[] = array(
-                        'key'     => 'guesty_address_city',
-                        'value'   => $cities_clean,
-                        'compare' => 'IN',
-                    );
-                }
+        $restrict_ids = null;
+        if ($selection_count > 1) {
+            $restrict_ids = $property_ids;
+            if (!empty($cities_clean) && function_exists('guesty_property_ids_for_cities')) {
+                $restrict_ids = array_merge($restrict_ids, guesty_property_ids_for_cities($cities_clean));
+            }
+            if ($search_term !== '') {
+                $restrict_ids = array_merge($restrict_ids, guesty_property_ids_for_term($search_term));
+            }
+            $restrict_ids = array_values(array_unique(array_map('intval', $restrict_ids)));
+            if (empty($restrict_ids)) {
+                $restrict_ids = array(0);
+            }
+        } elseif (count($property_ids) === 1) {
+            $restrict_ids = $property_ids;
+        } elseif ($search_term !== '') {
+            $restrict_ids = guesty_property_ids_for_term($search_term);
+            if (empty($restrict_ids)) {
+                $restrict_ids = array(0);
+            }
+        } elseif (!empty($cities_clean)) {
+            if (count($cities_clean) === 1) {
+                $meta_query[] = array(
+                    'key'     => 'guesty_address_city',
+                    'value'   => $cities_clean[0],
+                    'compare' => 'LIKE',
+                );
+            } else {
+                $meta_query[] = array(
+                    'key'     => 'guesty_address_city',
+                    'value'   => $cities_clean,
+                    'compare' => 'IN',
+                );
+            }
+        }
+
+        if (is_array($restrict_ids)) {
+            $existing = $query->get('post__in');
+            if (!empty($existing)) {
+                $merged = array_values(array_intersect(array_map('intval', (array) $existing), $restrict_ids));
+                $query->set('post__in', !empty($merged) ? $merged : array(0));
+            } else {
+                $query->set('post__in', $restrict_ids);
             }
         }
 

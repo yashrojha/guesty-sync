@@ -29,55 +29,116 @@ function guesty_render_search_bar()
 		<form id="guesty-search-form" class="guesty-search-bar" method="get" action="<?php echo esc_url(get_post_type_archive_link('properties')); ?>">
 			<div class="guesty-field-wrap">
 			<div class="guesty-field option-where">
-				<label>Where</label>
+				<label for="guesty-where-input">Where</label>
 				<?php
 				$cities = get_guesty_property_cities();
-				$raw_city = isset($_GET['city']) ? $_GET['city'] : [];
+				$properties = function_exists('get_guesty_search_properties') ? get_guesty_search_properties() : array();
+				$raw_city = isset($_GET['city']) ? wp_unslash($_GET['city']) : array();
 				if (!is_array($raw_city)) {
-					$raw_city = $raw_city !== '' ? [$raw_city] : [];
+					$raw_city = $raw_city !== '' ? array($raw_city) : array();
 				}
-				$selected_cities = array_map('sanitize_text_field', $raw_city);
-				$selected_cities = array_filter($selected_cities);
-				$multiselect_display = !empty($selected_cities) ? implode(', ', $selected_cities) : '';
+				$selected_cities = array_values(array_filter(array_map('sanitize_text_field', $raw_city)));
+				$selected_property_id = isset($_GET['property_id']) ? absint(wp_unslash($_GET['property_id'])) : 0;
+				$selected_property = null;
+				if ($selected_property_id) {
+					foreach ($properties as $property) {
+						if ((int) $property['id'] === $selected_property_id) {
+							$selected_property = $property;
+							break;
+						}
+					}
+				}
+				$selected_query = isset($_GET['q']) ? sanitize_text_field(wp_unslash($_GET['q'])) : '';
+				$summary_labels = $selected_cities;
+				if ($selected_property) {
+					$summary_labels[] = $selected_property['title'];
+				}
+				$where_value = $summary_labels ? implode(', ', $summary_labels) : $selected_query;
 				?>
-				<div class="guesty-multiselect"
-					id="city-multiselect"
-					data-placeholder="Select your destination"
-					role="combobox"
-					aria-haspopup="listbox"
-					aria-expanded="false">
-					<button type="button" class="guesty-multiselect-trigger" aria-label="Select regions">
-						<span class="guesty-multiselect-value<?php echo !empty($selected_cities) ? ' has-value' : ''; ?>">
-							<?php echo !empty($multiselect_display) ? esc_html($multiselect_display) : 'Select your destination'; ?>
-						</span>
-					</button>
-					<div class="guesty-multiselect-dropdown" hidden>
-						<div class="guesty-multiselect-search-wrap">
-							<input type="text"
-								class="guesty-multiselect-search"
-								placeholder="Search regions…"
-								autocomplete="off"
-								aria-label="Search regions">
+				<div class="guesty-where" id="guesty-where">
+					<div class="guesty-where-control">
+						<input type="text"
+							id="guesty-where-input"
+							class="guesty-where-input"
+							placeholder="Somewhere to stay"
+							value="<?php echo esc_attr($where_value); ?>"
+							autocomplete="off"
+							autocapitalize="off"
+							spellcheck="false"
+							role="combobox"
+							aria-autocomplete="list"
+							aria-expanded="false"
+							aria-controls="guesty-where-list"
+							aria-label="Search by region or property">
+						<button type="button" class="guesty-where-clear" aria-label="Clear destination" <?php echo $where_value === '' ? 'hidden' : ''; ?>>
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+								<path d="M3.2 11.2 2 10l3.6-3.6L2 2.8 3.2 1.6 6.8 5.2l3.6-3.6L11.6 2.8 8 6.4l3.6 3.6-1.2 1.2-3.6-3.6-3.6 3.6z" fill="currentColor"/>
+							</svg>
+						</button>
+					</div>
+					<div class="guesty-where-values">
+						<?php foreach ($selected_cities as $city) : ?>
+							<input type="hidden" name="city[]" value="<?php echo esc_attr($city); ?>">
+						<?php endforeach; ?>
+						<?php if ($selected_property) : ?>
+							<input type="hidden" name="property_id" value="<?php echo esc_attr((string) $selected_property['id']); ?>">
+						<?php endif; ?>
+						<input type="hidden" name="q" value="<?php echo esc_attr($selected_query); ?>">
+					</div>
+					<div class="guesty-where-panel" hidden>
+						<div class="guesty-where-selected" <?php echo ($selected_cities || $selected_property) ? '' : 'hidden'; ?>>
+							<p class="guesty-where-selected-label">Selected</p>
+							<div class="guesty-where-pills"></div>
 						</div>
-						<ul class="guesty-multiselect-list" role="listbox" aria-multiselectable="true">
-							<?php if (!empty($cities)) : foreach ($cities as $city) : ?>
-							<li class="guesty-multiselect-option" role="option" aria-selected="<?php echo in_array($city, $selected_cities, true) ? 'true' : 'false'; ?>">
-								<input
-									type="checkbox"
-									class="guesty-multiselect-cb"
-									name="city[]"
-									value="<?php echo esc_attr($city); ?>"
-									tabindex="-1"
-									aria-hidden="true"
-									<?php checked(in_array($city, $selected_cities)); ?>>
-								<button type="button" class="guesty-multiselect-row">
-									<span class="guesty-multiselect-check-icon" aria-hidden="true"></span>
-									<span class="guesty-multiselect-option-label"><?php echo esc_html($city); ?></span>
+						<ul class="guesty-where-list" id="guesty-where-list" role="listbox" aria-label="Regions and properties">
+							<li class="guesty-where-heading" data-heading="region" role="presentation">Regions</li>
+							<?php if (!empty($cities)) : foreach ($cities as $city) :
+								$city_selected = in_array($city, $selected_cities, true);
+							?>
+							<li class="guesty-where-option"
+								id="guesty-where-region-<?php echo esc_attr(sanitize_title($city)); ?>"
+								role="option"
+								data-type="region"
+								data-label="<?php echo esc_attr($city); ?>"
+								aria-selected="<?php echo $city_selected ? 'true' : 'false'; ?>">
+								<button type="button" class="guesty-where-row" tabindex="-1">
+									<span class="guesty-where-check" aria-hidden="true"></span>
+									<span class="guesty-where-label"><?php echo esc_html($city); ?></span>
 								</button>
 							</li>
 							<?php endforeach; endif; ?>
+							<li class="guesty-where-heading" data-heading="property" role="presentation" hidden>Properties</li>
+							<?php if (!empty($properties)) : foreach ($properties as $property) : ?>
+							<li class="guesty-where-option"
+								id="guesty-where-property-<?php echo esc_attr((string) $property['id']); ?>"
+								role="option"
+								data-type="property"
+								data-id="<?php echo esc_attr((string) $property['id']); ?>"
+								data-label="<?php echo esc_attr($property['title']); ?>"
+								data-city="<?php echo esc_attr($property['city']); ?>"
+								data-url="<?php echo esc_url($property['url']); ?>"
+								data-image="<?php echo esc_url($property['image']); ?>"
+								hidden>
+								<button type="button" class="guesty-where-row" tabindex="-1">
+									<span class="guesty-where-thumb">
+										<?php if ($property['image'] !== '') : ?>
+											<img src="<?php echo esc_url($property['image']); ?>" alt="">
+										<?php endif; ?>
+									</span>
+									<span class="guesty-where-copy">
+										<span class="guesty-where-label"><?php echo esc_html($property['title']); ?></span>
+										<?php if ($property['city'] !== '') : ?>
+											<span class="guesty-where-meta"><?php echo esc_html($property['city']); ?></span>
+										<?php endif; ?>
+									</span>
+								</button>
+							</li>
+							<?php endforeach; endif; ?>
+							<li class="guesty-where-more" role="presentation" hidden>
+								<a class="guesty-where-more-link" href="<?php echo esc_url(get_post_type_archive_link('properties')); ?>">View all properties</a>
+							</li>
 						</ul>
-						<p class="guesty-multiselect-no-results" hidden role="status" aria-live="polite"><?php esc_html_e( 'No regions match your search.', 'guesty-sync' ); ?></p>
+						<p class="guesty-where-empty" hidden role="status" aria-live="polite">No regions or properties match</p>
 					</div>
 				</div>
 			</div>
