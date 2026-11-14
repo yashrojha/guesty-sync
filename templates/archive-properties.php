@@ -91,7 +91,7 @@ $searched_dates = !empty($_GET['checkIn']) && !empty($_GET['checkOut']);
 													if (!$img_url) continue;
 												?>
 												<div class="swiper-slide">
-													<a href="<?php echo esc_url($link); ?>">
+													<a title="<?php echo esc_attr('View ' . get_the_title()); ?>" href="<?php echo esc_url($link); ?>">
 														<img class="property-card-featured-image" src="<?php echo esc_url($img_url); ?>" alt="">
 													</a>
 												</div>
@@ -102,7 +102,7 @@ $searched_dates = !empty($_GET['checkIn']) && !empty($_GET['checkOut']);
 											<div class="swiper-pagination"></div>
 										</div>
 										<?php if ($propertyIcon) { ?>
-											<a href="<?php echo esc_url($link); ?>" class="property-card-icon-wrap">
+											<a title="<?php echo esc_attr('View ' . get_the_title()); ?>" href="<?php echo esc_url($link); ?>" class="property-card-icon-wrap">
 												<img class="property-card-icon" src="<?php echo esc_url(wp_get_attachment_image_url($propertyIcon, 'thumbnail')); ?>" alt="">
 											</a>
 										<?php } ?>

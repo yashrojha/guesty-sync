@@ -58,7 +58,7 @@ function guesty_render_featured_properties() {
 											if (!$img_url) continue;
 										?>
 										<div class="swiper-slide">
-											<a href="<?php echo get_the_permalink($post_id); ?>">
+											<a title="<?php echo esc_attr('View ' . get_the_title($post_id)); ?>" href="<?php echo get_the_permalink($post_id); ?>">
 												<img class="property-card-featured-image" src="<?php echo esc_url($img_url); ?>" alt="">
 											</a>
 										</div>
@@ -69,7 +69,7 @@ function guesty_render_featured_properties() {
 									<div class="swiper-pagination"></div>
 								</div>
 								<?php if ($property_icon) { ?>
-									<a href="<?php echo get_the_permalink($post_id); ?>" class="property-card-icon-wrap">
+									<a title="<?php echo esc_attr('View ' . get_the_title($post_id)); ?>" href="<?php echo get_the_permalink($post_id); ?>" class="property-card-icon-wrap">
 										<img class="property-card-icon" src="<?php echo esc_url(wp_get_attachment_image_url($property_icon, 'thumbnail')); ?>" alt="">
 									</a>
 								<?php } ?>
