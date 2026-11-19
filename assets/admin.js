@@ -519,3 +519,56 @@ jQuery(document).ready(function ($) {
         $('#guesty-pdf-upload').text('Upload PDF Plan');
     });
 });
+
+// Property region list: add a website-only region and assign it.
+jQuery(function ($) {
+    const list = $('#guesty-region-list');
+    const input = $('#guesty-new-region');
+    if (!list.length || !input.length) {
+        return;
+    }
+
+    function addRegion() {
+        const name = input.val().replace(/\s+/g, ' ').trim();
+        if (!name) {
+            return;
+        }
+
+        const key = name.toLowerCase();
+        let existing = null;
+        list.find('.guesty-region-choice').each(function () {
+            if (String($(this).attr('data-region')).toLowerCase() === key) {
+                existing = $(this);
+            }
+        });
+
+        if (existing) {
+            if (!existing.hasClass('is-guesty')) {
+                existing.find('input[type="checkbox"]').prop('checked', true);
+            }
+        } else {
+            const choice = $('<label>', {
+                'class': 'guesty-region-choice',
+                'data-region': name
+            });
+            choice.append($('<input>', {
+                type: 'checkbox',
+                name: 'guesty_extra_regions[]',
+                value: name,
+                checked: true
+            }));
+            choice.append($('<span>').text(name));
+            list.append(choice);
+        }
+
+        input.val('');
+    }
+
+    $('#guesty-add-region').on('click', addRegion);
+    input.on('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addRegion();
+        }
+    });
+});

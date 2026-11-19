@@ -37,7 +37,9 @@ function guesty_render_search_bar()
 				if (!is_array($raw_city)) {
 					$raw_city = $raw_city !== '' ? array($raw_city) : array();
 				}
-				$selected_cities = array_values(array_filter(array_map('sanitize_text_field', $raw_city)));
+				$selected_cities = function_exists('guesty_canonical_region_names')
+					? guesty_canonical_region_names($raw_city)
+					: array_values(array_filter(array_map('sanitize_text_field', $raw_city)));
 				$selected_property_id = isset($_GET['property_id']) ? absint(wp_unslash($_GET['property_id'])) : 0;
 				$selected_property = null;
 				if ($selected_property_id) {

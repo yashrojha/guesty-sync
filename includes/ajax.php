@@ -269,18 +269,11 @@ function guesty_archive_filter($query) {
                 $restrict_ids = array(0);
             }
         } elseif (!empty($cities_clean)) {
-            if (count($cities_clean) === 1) {
-                $meta_query[] = array(
-                    'key'     => 'guesty_address_city',
-                    'value'   => $cities_clean[0],
-                    'compare' => 'LIKE',
-                );
-            } else {
-                $meta_query[] = array(
-                    'key'     => 'guesty_address_city',
-                    'value'   => $cities_clean,
-                    'compare' => 'IN',
-                );
+            $restrict_ids = function_exists('guesty_property_ids_for_cities')
+                ? guesty_property_ids_for_cities($cities_clean)
+                : array();
+            if (empty($restrict_ids)) {
+                $restrict_ids = array(0);
             }
         }
 

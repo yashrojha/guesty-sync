@@ -617,8 +617,28 @@ add_action('manage_properties_posts_custom_column', function ($column, $post_id)
             break;
 			
 		case 'region':
-            $status = get_post_meta($post_id, 'guesty_address_city', true);
-            echo '<strong style="text-transform: uppercase;">' . esc_html($status ?: 'Nothing') . '</strong>';
+            $city = function_exists('guesty_clean_region_name')
+                ? guesty_clean_region_name(get_post_meta($post_id, 'guesty_address_city', true))
+                : (string) get_post_meta($post_id, 'guesty_address_city', true);
+            $extras = function_exists('guesty_get_property_extra_regions')
+                ? guesty_get_property_extra_regions($post_id)
+                : array();
+            if ($city !== '' && function_exists('guesty_region_catalog_key')) {
+                $city_key = guesty_region_catalog_key($city);
+                $extras = array_values(array_filter($extras, function ($region) use ($city_key) {
+                    return guesty_region_catalog_key($region) !== $city_key;
+                }));
+            }
+            if ($city === '' && empty($extras)) {
+                echo '<strong style="text-transform: uppercase;">Nothing</strong>';
+                break;
+            }
+            if ($city !== '') {
+                echo '<strong style="text-transform: uppercase;">' . esc_html($city) . '</strong>';
+            }
+            if (!empty($extras)) {
+                echo '<div class="guesty-region-column-extra">' . esc_html(implode(', ', $extras)) . '</div>';
+            }
             break;
 			
         case 'sync_status':
@@ -650,25 +670,14 @@ function get_max_property_occupancy() {
     return $max_value ? (int) $max_value : 1;
 }
 
-// Get a unique, sorted list of cities from the 'properties' post type
-// @return array List of unique city names
+// Shared region list: Guesty cities plus regions added on this website.
+// @return array List of region names
 function get_guesty_property_cities() {
-    global $wpdb;
+    if (function_exists('guesty_get_region_catalog')) {
+        return guesty_get_region_catalog();
+    }
 
-    $cities = $wpdb->get_col( $wpdb->prepare(
-        "SELECT DISTINCT pm.meta_value 
-         FROM {$wpdb->postmeta} pm
-         LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-         WHERE pm.meta_key = %s 
-         AND p.post_type = %s 
-         AND p.post_status = 'publish'
-         AND pm.meta_value != ''
-         ORDER BY pm.meta_value ASC",
-        'guesty_address_city',
-        'properties'
-    ));
-
-    return $cities;
+    return array();
 }
 
 // Published properties for the unified search field.
@@ -730,13 +739,17 @@ function guesty_property_ids_for_term($term) {
     $ids = $wpdb->get_col($wpdb->prepare(
         "SELECT DISTINCT p.ID
          FROM {$wpdb->posts} p
-         LEFT JOIN {$wpdb->postmeta} pm
-            ON pm.post_id = p.ID AND pm.meta_key = %s
+         LEFT JOIN {$wpdb->postmeta} city
+            ON city.post_id = p.ID AND city.meta_key = %s
+         LEFT JOIN {$wpdb->postmeta} extra
+            ON extra.post_id = p.ID AND extra.meta_key = %s
          WHERE p.post_type = %s
            AND p.post_status = 'publish'
-           AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)",
+           AND (p.post_title LIKE %s OR city.meta_value LIKE %s OR extra.meta_value LIKE %s)",
         'guesty_address_city',
+        'guesty_extra_region',
         'properties',
+        $like,
         $like,
         $like
     ));
@@ -785,16 +798,33 @@ function guesty_property_ids_for_cities($cities) {
         return array();
     }
 
-    $placeholders = implode(',', array_fill(0, count($cities), '%s'));
-    $sql = "SELECT DISTINCT p.ID
-         FROM {$wpdb->posts} p
-         INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
-         WHERE pm.meta_key = %s
-           AND p.post_type = %s
-           AND p.post_status = 'publish'
-           AND pm.meta_value IN ($placeholders)";
-    $params = array_merge(array('guesty_address_city', 'properties'), $cities);
-    $ids = $wpdb->get_col($wpdb->prepare($sql, $params));
+    if (count($cities) === 1) {
+        $like = '%' . $wpdb->esc_like($cities[0]) . '%';
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT p.ID
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
+             WHERE p.post_type = %s
+               AND p.post_status = 'publish'
+               AND pm.meta_key IN (%s, %s)
+               AND pm.meta_value LIKE %s",
+            'properties',
+            'guesty_address_city',
+            'guesty_extra_region',
+            $like
+        ));
+    } else {
+        $placeholders = implode(',', array_fill(0, count($cities), '%s'));
+        $sql = "SELECT DISTINCT p.ID
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
+             WHERE p.post_type = %s
+               AND p.post_status = 'publish'
+               AND pm.meta_key IN (%s, %s)
+               AND pm.meta_value IN ($placeholders)";
+        $params = array_merge(array('properties', 'guesty_address_city', 'guesty_extra_region'), $cities);
+        $ids = $wpdb->get_col($wpdb->prepare($sql, $params));
+    }
 
     return array_values(array_filter(array_map('intval', (array) $ids)));
 }
@@ -805,7 +835,9 @@ function guesty_search_request() {
     if (!is_array($raw_cities)) {
         $raw_cities = ($raw_cities === '' || $raw_cities === null) ? array() : array($raw_cities);
     }
-    $cities = array_values(array_filter(array_map('sanitize_text_field', $raw_cities)));
+    $cities = function_exists('guesty_canonical_region_names')
+        ? guesty_canonical_region_names($raw_cities)
+        : array_values(array_filter(array_map('sanitize_text_field', $raw_cities)));
 
     $raw_ids = isset($_GET['property_id']) ? wp_unslash($_GET['property_id']) : array();
     if (!is_array($raw_ids)) {

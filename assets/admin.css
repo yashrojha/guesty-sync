@@ -407,6 +407,51 @@ ul.guesty_amenities {
     font-size: 13px;
 }
 
+.guesty-region-note {
+	margin: 0 0 8px;
+	color: #646970;
+}
+.guesty-region-list {
+	max-height: 260px;
+	overflow: auto;
+	margin: 0 0 12px;
+	padding: 8px 10px;
+	border: 1px dashed #c3c4c7;
+	background: #fff;
+}
+.guesty-region-choice {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 6px;
+}
+.guesty-region-choice.is-guesty {
+	font-weight: 600;
+}
+.guesty-region-source {
+	margin-left: auto;
+	color: #646970;
+	font-size: 11px;
+	font-style: normal;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.guesty-region-add {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+.guesty-region-add input[type="text"] {
+	flex: 1;
+	min-width: 120px;
+}
+.guesty-region-column-extra {
+	margin-top: 4px;
+	color: #646970;
+}
+
 /* Sortable placeholder */
 .bedroom-sort-placeholder {
     border: 2px dashed #2271b1;

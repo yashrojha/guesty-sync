@@ -127,6 +127,8 @@ function guesty_upsert_property($property) {
 	update_post_meta($post_id, 'guesty_bathrooms', $property['bathrooms']);
 	update_post_meta($post_id, 'guesty_address_full', $property['address']['full']);
 	update_post_meta($post_id, 'guesty_address_city', $property['address']['city']);
+	// Extra regions saved on the property are website-only and must survive this sync.
+	guesty_register_region($property['address']['city'] ?? '');
 	update_post_meta($post_id, 'guesty_address_state', $property['address']['state']);
 	update_post_meta($post_id, 'guesty_address_country', $property['address']['country']);
 	update_post_meta($post_id, 'guesty_address_zipcode', $property['address']['zipcode']);

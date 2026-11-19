@@ -14,6 +14,7 @@ define('GUESTY_SYNC_URL', plugin_dir_url(__FILE__));
 add_image_size('guesty_medium', 400, 0, false);
 add_image_size('guesty_large', 900, 0, false);
 
+require_once GUESTY_SYNC_PATH . 'includes/regions.php';
 require_once GUESTY_SYNC_PATH . 'includes/admin-menu.php';
 require_once GUESTY_SYNC_PATH . 'includes/api.php';
 require_once GUESTY_SYNC_PATH . 'includes/payments.php';
